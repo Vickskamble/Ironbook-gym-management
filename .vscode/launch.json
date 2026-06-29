@@ -1,0 +1,11 @@
+{
+    "configurations": [
+        
+        {
+            "type": "chrome",
+            "name": "https://github.com/corbado/flutter-passkeys/releases/download/2.4.0/bundle.js",
+            "request": "launch",
+            "url": "https://github.com/corbado/flutter-passkeys/releases/download/2.4.0/bundle.js"
+        }
+    ]
+}

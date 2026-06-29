@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IronBook — Complete Gym Management Solution</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: #0a0a0f;
+      color: #e0e0e0;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* Hero Section */
+    .hero {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #0a0a1a 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 40px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(108,99,255,0.08) 0%, transparent 70%);
+      top: -200px;
+      right: -200px;
+    }
+    .hero::after {
+      content: '';
+      position: absolute;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(255,107,53,0.05) 0%, transparent 70%);
+      bottom: -200px;
+      left: -200px;
+    }
+    .logo-icon {
+      width: 100px;
+      height: 100px;
+      background: linear-gradient(135deg, #6C63FF, #FF6B35);
+      border-radius: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 48px;
+      color: white;
+      box-shadow: 0 20px 60px rgba(108,99,255,0.3);
+      margin-bottom: 24px;
+      position: relative;
+      z-index: 1;
+    }
+    .hero h1 {
+      font-size: 56px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #6C63FF, #FF6B35);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: 2px;
+      position: relative;
+      z-index: 1;
+    }
+    .hero .tagline {
+      font-size: 18px;
+      letter-spacing: 6px;
+      color: #6C63FF;
+      font-weight: 600;
+      margin-bottom: 16px;
+      position: relative;
+      z-index: 1;
+    }
+    .hero .subtitle {
+      font-size: 20px;
+      color: #8888aa;
+      max-width: 600px;
+      margin: 16px auto 40px;
+      position: relative;
+      z-index: 1;
+    }
+    .cta-buttons {
+      display: flex;
+      gap: 16px;
+      position: relative;
+      z-index: 1;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .cta-primary {
+      background: linear-gradient(135deg, #6C63FF, #FF6B35);
+      color: white;
+      border: none;
+      padding: 16px 40px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .cta-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(108,99,255,0.3);
+    }
+    .cta-secondary {
+      background: transparent;
+      color: #6C63FF;
+      border: 2px solid #6C63FF;
+      padding: 14px 40px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .cta-secondary:hover {
+      background: rgba(108,99,255,0.1);
+    }
+
+    /* Sections */
+    .section {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 100px 24px;
+    }
+    .section-label {
+      font-size: 14px;
+      letter-spacing: 4px;
+      color: #6C63FF;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .section h2 {
+      font-size: 40px;
+      font-weight: 800;
+      margin-bottom: 20px;
+      color: white;
+    }
+    .section p {
+      font-size: 18px;
+      color: #8888aa;
+      max-width: 700px;
+    }
+
+    /* Features Grid */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+      margin-top: 60px;
+    }
+    .feature-card {
+      background: linear-gradient(145deg, #12121f, #1a1a2e);
+      border-radius: 20px;
+      padding: 36px;
+      border: 1px solid #222244;
+      transition: transform 0.3s, border-color 0.3s;
+    }
+    .feature-card:hover {
+      transform: translateY(-4px);
+      border-color: #6C63FF;
+    }
+    .feature-icon {
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(135deg, rgba(108,99,255,0.15), rgba(255,107,53,0.15));
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      margin-bottom: 20px;
+    }
+    .feature-card h3 {
+      font-size: 20px;
+      color: white;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .feature-card p {
+      font-size: 15px;
+      color: #7777aa;
+      line-height: 1.7;
+    }
+
+    /* Screenshots Mockup */
+    .mockup-section {
+      background: linear-gradient(135deg, #0a0a1a 0%, #12121f 50%, #0a0a1a 100%);
+    }
+    .mockup-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 32px;
+      margin-top: 60px;
+    }
+    .mockup-card {
+      background: #12121f;
+      border-radius: 20px;
+      overflow: hidden;
+      border: 1px solid #222244;
+      transition: transform 0.3s;
+    }
+    .mockup-card:hover {
+      transform: translateY(-4px);
+    }
+    .mockup-header {
+      background: linear-gradient(135deg, #6C63FF, #FF6B35);
+      padding: 20px 24px;
+      color: white;
+      font-weight: 700;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .mockup-body {
+      padding: 24px;
+    }
+    .mockup-body .phone-frame {
+      background: #0a0a0f;
+      border-radius: 16px;
+      padding: 16px;
+      margin-top: 12px;
+    }
+    .mockup-row {
+      display: flex;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid #1a1a2e;
+      gap: 12px;
+    }
+    .mockup-row:last-child { border: none; }
+    .mockup-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6C63FF, #FF6B35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 700;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .mockup-avatar.green { background: linear-gradient(135deg, #2ecc71, #27ae60); }
+    .mockup-avatar.orange { background: linear-gradient(135deg, #e67e22, #d35400); }
+    .mockup-name { flex: 1; font-size: 14px; color: #ccc; }
+    .mockup-status {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+    .status-active { background: rgba(46,204,113,0.15); color: #2ecc71; }
+    .status-expired { background: rgba(231,76,60,0.15); color: #e74c3c; }
+    .mockup-amount { font-weight: 700; color: #6C63FF; font-size: 15px; }
+    .mockup-label {
+      font-size: 12px;
+      color: #5555aa;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .mockup-metric {
+      font-size: 24px;
+      font-weight: 800;
+      color: white;
+    }
+
+    /* Stats Row */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 24px;
+      margin-top: 60px;
+    }
+    .stat-box {
+      background: #12121f;
+      border-radius: 16px;
+      padding: 32px;
+      text-align: center;
+      border: 1px solid #222244;
+    }
+    .stat-number {
+      font-size: 48px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #6C63FF, #FF6B35);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .stat-label {
+      font-size: 14px;
+      color: #7777aa;
+      margin-top: 8px;
+    }
+
+    /* Plan Cards */
+    .plans-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 32px;
+      margin-top: 60px;
+    }
+    .plan-card {
+      background: #12121f;
+      border-radius: 24px;
+      padding: 48px 36px;
+      border: 1px solid #222244;
+      text-align: center;
+      position: relative;
+      transition: transform 0.3s, border-color 0.3s;
+    }
+    .plan-card:hover {
+      transform: translateY(-4px);
+    }
+    .plan-card.featured {
+      border-color: #6C63FF;
+      background: linear-gradient(145deg, #14142a, #1a1a2e);
+    }
+    .plan-card.featured::before {
+      content: 'POPULAR';
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: linear-gradient(135deg, #6C63FF, #FF6B35);
+      color: white;
+      padding: 4px 16px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+    .plan-name {
+      font-size: 20px;
+      font-weight: 700;
+      color: white;
+      margin-bottom: 8px;
+    }
+    .plan-price {
+      font-size: 48px;
+      font-weight: 900;
+      color: white;
+      margin: 16px 0;
+    }
+    .plan-price span {
+      font-size: 18px;
+      color: #7777aa;
+      font-weight: 400;
+    }
+    .plan-features {
+      list-style: none;
+      margin: 24px 0;
+    }
+    .plan-features li {
+      padding: 10px 0;
+      color: #aaaacc;
+      border-bottom: 1px solid #1a1a2e;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      justify-content: center;
+    }
+    .plan-features li:last-child { border: none; }
+    .plan-btn {
+      display: inline-block;
+      padding: 14px 40px;
+      border-radius: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      font-size: 16px;
+      margin-top: 16px;
+      transition: all 0.2s;
+    }
+    .plan-btn.primary {
+      background: linear-gradient(135deg, #6C63FF, #FF6B35);
+      color: white;
+    }
+    .plan-btn.primary:hover {
+      box-shadow: 0 8px 30px rgba(108,99,255,0.3);
+    }
+    .plan-btn.secondary {
+      background: transparent;
+      color: #6C63FF;
+      border: 2px solid #6C63FF;
+    }
+
+    /* Footer */
+    .footer {
+      background: #0a0a0f;
+      border-top: 1px solid #1a1a2e;
+      padding: 60px 24px;
+      text-align: center;
+    }
+    .footer h3 {
+      font-size: 24px;
+      font-weight: 700;
+      color: white;
+      margin-bottom: 12px;
+    }
+    .footer p {
+      color: #7777aa;
+      margin-bottom: 24px;
+    }
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 32px;
+      flex-wrap: wrap;
+      margin-top: 24px;
+    }
+    .footer-links a {
+      color: #5555aa;
+      text-decoration: none;
+      font-size: 14px;
+      transition: color 0.2s;
+    }
+    .footer-links a:hover { color: #6C63FF; }
+
+    /* Divider */
+    .divider {
+      width: 60px;
+      height: 4px;
+      background: linear-gradient(135deg, #6C63FF, #FF6B35);
+      border-radius: 2px;
+      margin: 24px 0;
+    }
+    .center { text-align: center; margin-left: auto; margin-right: auto; }
+    .center .divider { margin: 24px auto; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .hero h1 { font-size: 36px; }
+      .hero .subtitle { font-size: 16px; }
+      .section h2 { font-size: 28px; }
+      .features-grid { grid-template-columns: 1fr; }
+      .mockup-grid { grid-template-columns: 1fr; }
+      .plans-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Animation */
+    .fade-in {
+      opacity: 0;
+      transform: translateY(30px);
+      animation: fadeIn 0.8s ease forwards;
+    }
+    @keyframes fadeIn {
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .delay-1 { animation-delay: 0.1s; }
+    .delay-2 { animation-delay: 0.2s; }
+    .delay-3 { animation-delay: 0.3s; }
+    .delay-4 { animation-delay: 0.4s; }
+  </style>
+</head>
+<body>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="logo-icon">🏋️</div>
+  <p class="tagline fade-in">SAAS GYM MANAGEMENT</p>
+  <h1 class="fade-in delay-1">IronBook</h1>
+  <p class="subtitle fade-in delay-2">
+    The all-in-one platform to manage your gym — members, plans, payments, and staff, all in one place.
+  </p>
+  <div class="cta-buttons fade-in delay-3">
+    <a href="#features" class="cta-primary">Explore Features</a>
+    <a href="#pricing" class="cta-secondary">View Pricing</a>
+  </div>
+</section>
+
+<!-- Stats -->
+<section class="section center">
+  <div class="stats-row fade-in">
+    <div class="stat-box">
+      <div class="stat-number">5</div>
+      <div class="stat-label">Modules</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-number">100%</div>
+      <div class="stat-label">Data Isolation</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-number">Multi</div>
+      <div class="stat-label">Gym Support</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-number">0</div>
+      <div class="stat-label">Code Errors</div>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section class="section" id="features">
+  <div class="center">
+    <p class="section-label">Features</p>
+    <h2>Everything You Need to Run Your Gym</h2>
+    <p>From member onboarding to payment tracking, IronBook covers every aspect of gym management with a premium, modern interface.</p>
+  </div>
+
+  <div class="features-grid fade-in">
+    <div class="feature-card">
+      <div class="feature-icon">🔐</div>
+      <h3>Authentication & Roles</h3>
+      <p>Secure login with role-based access — Superadmin, Admin, Trainer, and Staff. Each role sees only what they need.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">👥</div>
+      <h3>Member Management</h3>
+      <p>Add, search, filter, and manage members with status tracking (Active, Expired, Paused). View complete member profiles.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📋</div>
+      <h3>Plan Management</h3>
+      <p>Create membership plans with custom pricing and durations. Plans auto-calculate expiry when recording payments.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🧾</div>
+      <h3>Payment Tracking</h3>
+      <p>Record payments linked to members and plans. Supports Cash, UPI, Card, and Bank Transfer. Auto-calculates expiry dates.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🏢</div>
+      <h3>Multi-Gym Support</h3>
+      <p>Run multiple gyms from one platform. Complete data isolation between gyms — each gym sees only its own data.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📊</div>
+      <h3>Admin Dashboard</h3>
+      <p>Superadmin panel with system-wide stats, staff management, and gym oversight. Manage everything from one place.</p>
+    </div>
+  </div>
+</section>
+
+<!-- App Screenshots Mockup -->
+<section class="section mockup-section">
+  <div class="center">
+    <p class="section-label">App Screens</p>
+    <h2>Beautiful, Modern Interface</h2>
+    <p>Premium dark-themed UI built with Flutter, designed for both Android and iOS.</p>
+  </div>
+
+  <div class="mockup-grid fade-in">
+    <!-- Login Screen -->
+    <div class="mockup-card">
+      <div class="mockup-header">🔐 Login Screen</div>
+      <div class="mockup-body">
+        <div class="phone-frame">
+          <div style="text-align:center;margin-bottom:16px;">
+            <div style="width:48px;height:48px;background:linear-gradient(135deg,#6C63FF,#FF6B35);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:22px;color:white;">🏋️</div>
+            <div style="font-size:20px;font-weight:900;background:linear-gradient(135deg,#6C63FF,#FF6B35);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">IronBook</div>
+            <div style="font-size:10px;color:#6C63FF;letter-spacing:3px;">GYM MANAGEMENT</div>
+          </div>
+          <div style="background:#1a1a2e;border-radius:10px;padding:12px;margin-bottom:10px;">
+            <div style="font-size:11px;color:#5555aa;margin-bottom:4px;">Email</div>
+            <div style="color:#666;font-size:13px;">admin@gym.com</div>
+          </div>
+          <div style="background:#1a1a2e;border-radius:10px;padding:12px;margin-bottom:14px;">
+            <div style="font-size:11px;color:#5555aa;margin-bottom:4px;">Password</div>
+            <div style="color:#666;font-size:13px;">••••••••</div>
+          </div>
+          <div style="background:linear-gradient(135deg,#6C63FF,#FF6B35);border-radius:10px;padding:12px;text-align:center;font-weight:600;font-size:14px;color:white;">Login</div>
+          <div style="text-align:center;margin-top:12px;font-size:12px;color:#5555aa;">Don't have an account? <span style="color:#6C63FF;">Sign Up</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="mockup-card">
+      <div class="mockup-header">📊 Dashboard</div>
+      <div class="mockup-body">
+        <div class="phone-frame">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div><span style="color:#7777aa;font-size:12px;">Welcome back,</span><br><span style="color:white;font-weight:700;">Rahul</span></div>
+            <div style="color:#6C63FF;">🚪</div>
+          </div>
+          <div style="background:linear-gradient(145deg,#12121f,#1a1a2e);border-radius:12px;padding:14px;margin-bottom:16px;border:1px solid #222244;">
+            <div style="font-weight:700;color:white;font-size:15px;">Iron Fitness Gym</div>
+            <div style="color:#5555aa;font-size:11px;">123 Main Street, City</div>
+            <div style="display:inline-block;background:rgba(108,99,255,0.15);color:#6C63FF;padding:2px 12px;border-radius:20px;font-size:10px;font-weight:700;margin-top:6px;">FREE</div>
+          </div>
+          <div style="font-size:13px;font-weight:700;color:white;margin-bottom:10px;">Quick Stats</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div style="background:#12121f;border-radius:10px;padding:14px;text-align:center;">
+              <div style="font-size:22px;font-weight:900;color:#6C63FF;">42</div>
+              <div style="font-size:10px;color:#5555aa;">Members</div>
+            </div>
+            <div style="background:#12121f;border-radius:10px;padding:14px;text-align:center;">
+              <div style="font-size:22px;font-weight:900;color:#2ecc71;">6</div>
+              <div style="font-size:10px;color:#5555aa;">Plans</div>
+            </div>
+          </div>
+          <div style="margin-top:12px;background:#12121f;border-radius:10px;">
+            <div style="display:flex;align-items:center;padding:10px 12px;border-bottom:1px solid #1a1a2e;">
+              <span style="font-size:16px;margin-right:10px;">👥</span>
+              <span style="flex:1;color:#ccc;font-size:13px;">Members</span>
+              <span style="color:#5555aa;">›</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Members -->
+    <div class="mockup-card">
+      <div class="mockup-header">👥 Member List</div>
+      <div class="mockup-body">
+        <div class="phone-frame">
+          <div style="background:#1a1a2e;border-radius:10px;padding:10px;margin-bottom:12px;display:flex;align-items:center;">
+            <span style="color:#5555aa;font-size:13px;">🔍 Search members...</span>
+          </div>
+          <div style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;">
+            <span style="background:#6C63FF;color:white;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;">All</span>
+            <span style="background:#1a1a2e;color:#5555aa;padding:4px 12px;border-radius:20px;font-size:11px;">Active</span>
+            <span style="background:#1a1a2e;color:#5555aa;padding:4px 12px;border-radius:20px;font-size:11px;">Expired</span>
+          </div>
+          <div class="mockup-row">
+            <div class="mockup-avatar">A</div>
+            <div class="mockup-name">
+              <div style="font-weight:600;">Amit Sharma</div>
+              <div style="color:#5555aa;font-size:12px;">+91 98765 43210</div>
+            </div>
+            <span class="mockup-status status-active">Active</span>
+          </div>
+          <div class="mockup-row">
+            <div class="mockup-avatar green">P</div>
+            <div class="mockup-name">
+              <div style="font-weight:600;">Priya Patel</div>
+              <div style="color:#5555aa;font-size:12px;">+91 98765 43211</div>
+            </div>
+            <span class="mockup-status status-active">Active</span>
+          </div>
+          <div class="mockup-row">
+            <div class="mockup-avatar orange">R</div>
+            <div class="mockup-name">
+              <div style="font-weight:600;">Rohit Verma</div>
+              <div style="color:#5555aa;font-size:12px;">+91 98765 43212</div>
+            </div>
+            <span class="mockup-status status-expired">Expired</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Payments -->
+    <div class="mockup-card">
+      <div class="mockup-header">🧾 Payments</div>
+      <div class="mockup-body">
+        <div class="phone-frame">
+          <div class="mockup-row">
+            <div class="mockup-avatar">A</div>
+            <div class="mockup-name">
+              <div style="font-weight:600;">Amit Sharma</div>
+              <div style="color:#5555aa;font-size:11px;">Monthly Premium</div>
+            </div>
+            <div>
+              <div class="mockup-amount">₹999</div>
+              <span class="mockup-status status-active" style="font-size:9px;">Active</span>
+            </div>
+          </div>
+          <div class="mockup-row">
+            <div class="mockup-avatar green">P</div>
+            <div class="mockup-name">
+              <div style="font-weight:600;">Priya Patel</div>
+              <div style="color:#5555aa;font-size:11px;">Quarterly Plan</div>
+            </div>
+            <div>
+              <div class="mockup-amount">₹2,499</div>
+              <span class="mockup-status status-active" style="font-size:9px;">Active</span>
+            </div>
+          </div>
+          <div class="mockup-row">
+            <div class="mockup-avatar orange">R</div>
+            <div class="mockup-name">
+              <div style="font-weight:600;">Rohit Verma</div>
+              <div style="color:#5555aa;font-size:11px;">Yearly Plan</div>
+            </div>
+            <div>
+              <div class="mockup-amount">₹8,999</div>
+              <span class="mockup-status status-expired" style="font-size:9px;">Expired</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin -->
+    <div class="mockup-card">
+      <div class="mockup-header">🏢 Admin Panel</div>
+      <div class="mockup-body">
+        <div class="phone-frame">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+            <div style="width:40px;height:40px;background:#6C63FF;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;">S</div>
+            <div>
+              <div style="font-weight:700;color:white;font-size:14px;">Super Admin</div>
+              <div style="color:#6C63FF;font-size:11px;">Superadmin</div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+            <div style="background:#12121f;border-radius:10px;padding:12px;text-align:center;">
+              <div style="font-size:18px;font-weight:900;color:#6C63FF;">12</div>
+              <div style="font-size:9px;color:#5555aa;">Total Gyms</div>
+            </div>
+            <div style="background:#12121f;border-radius:10px;padding:12px;text-align:center;">
+              <div style="font-size:18px;font-weight:900;color:#2ecc71;">486</div>
+              <div style="font-size:9px;color:#5555aa;">Members</div>
+            </div>
+          </div>
+          <div style="font-size:12px;color:white;font-weight:600;margin-bottom:8px;">Quick Actions</div>
+          <div style="background:#12121f;border-radius:10px;">
+            <div style="display:flex;align-items:center;padding:10px;border-bottom:1px solid #1a1a2e;">
+              <span style="margin-right:10px;">🏢</span><span style="flex:1;color:#ccc;font-size:12px;">Manage Gyms</span><span style="color:#5555aa;">›</span>
+            </div>
+            <div style="display:flex;align-items:center;padding:10px;">
+              <span style="margin-right:10px;">👥</span><span style="flex:1;color:#ccc;font-size:12px;">Manage Staff</span><span style="color:#5555aa;">›</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Plans -->
+    <div class="mockup-card">
+      <div class="mockup-header">📋 Plans</div>
+      <div class="mockup-body">
+        <div class="phone-frame">
+          <div style="background:linear-gradient(145deg,#14142a,#1a1a2e);border-radius:14px;padding:16px;margin-bottom:12px;border:1px solid #6C63FF;">
+            <div style="display:flex;justify-content:space-between;">
+              <div>
+                <div style="font-weight:700;color:white;font-size:16px;">Monthly Premium</div>
+                <div style="color:#5555aa;font-size:11px;margin-top:2px;">Full gym access + classes</div>
+              </div>
+              <span class="mockup-status status-active">Active</span>
+            </div>
+            <div style="font-size:28px;font-weight:900;color:white;margin-top:10px;">₹999 <span style="font-size:14px;color:#5555aa;">/ 30 days</span></div>
+          </div>
+          <div style="background:#12121f;border-radius:14px;padding:16px;margin-bottom:12px;">
+            <div style="display:flex;justify-content:space-between;">
+              <div>
+                <div style="font-weight:700;color:white;font-size:16px;">Quarterly Plan</div>
+                <div style="color:#5555aa;font-size:11px;margin-top:2px;">Best value for regulars</div>
+              </div>
+              <span class="mockup-status status-active">Active</span>
+            </div>
+            <div style="font-size:28px;font-weight:900;color:white;margin-top:10px;">₹2,499 <span style="font-size:14px;color:#5555aa;">/ 90 days</span></div>
+          </div>
+          <div style="background:#12121f;border-radius:14px;padding:16px;">
+            <div style="display:flex;justify-content:space-between;">
+              <div>
+                <div style="font-weight:700;color:white;font-size:16px;">Yearly Unlimited</div>
+                <div style="color:#5555aa;font-size:11px;margin-top:2px;">Everything unlimited</div>
+              </div>
+              <span class="mockup-status status-expired">Expired</span>
+            </div>
+            <div style="font-size:28px;font-weight:900;color:white;margin-top:10px;">₹8,999 <span style="font-size:14px;color:#5555aa;">/ 365 days</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- How It Works -->
+<section class="section center">
+  <p class="section-label">How It Works</p>
+  <h2>Go Live in Minutes</h2>
+  <p>Simple 3-step setup to get your gym on IronBook.</p>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:32px;margin-top:60px;">
+    <div>
+      <div style="font-size:48px;font-weight:900;color:#1a1a2e;-webkit-text-stroke:2px #6C63FF;">01</div>
+      <h3 style="color:white;font-size:20px;margin:16px 0 8px;">Sign Up</h3>
+      <p style="color:#7777aa;font-size:14px;">Create your gym owner account with name, email, and gym details.</p>
+    </div>
+    <div>
+      <div style="font-size:48px;font-weight:900;color:#1a1a2e;-webkit-text-stroke:2px #FF6B35;">02</div>
+      <h3 style="color:white;font-size:20px;margin:16px 0 8px;">Create Plans</h3>
+      <p style="color:#7777aa;font-size:14px;">Set up your membership plans with custom pricing and durations.</p>
+    </div>
+    <div>
+      <div style="font-size:48px;font-weight:900;color:#1a1a2e;-webkit-text-stroke:2px #2ecc71;">03</div>
+      <h3 style="color:white;font-size:20px;margin:16px 0 8px;">Add Members</h3>
+      <p style="color:#7777aa;font-size:14px;">Onboard members, record payments, and start managing!</p>
+    </div>
+  </div>
+</section>
+
+<!-- Tech Stack -->
+<section class="section" style="padding-top:40px;">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:20px;margin-top:40px;">
+    <div style="background:#12121f;border-radius:14px;padding:24px;text-align:center;border:1px solid #222244;">
+      <div style="font-size:28px;margin-bottom:8px;">🦋</div>
+      <div style="color:white;font-weight:600;font-size:14px;">Flutter</div>
+      <div style="color:#5555aa;font-size:11px;">Cross-platform</div>
+    </div>
+    <div style="background:#12121f;border-radius:14px;padding:24px;text-align:center;border:1px solid #222244;">
+      <div style="font-size:28px;margin-bottom:8px;">⚡</div>
+      <div style="color:white;font-weight:600;font-size:14px;">Supabase</div>
+      <div style="color:#5555aa;font-size:11px;">Backend & Auth</div>
+    </div>
+    <div style="background:#12121f;border-radius:14px;padding:24px;text-align:center;border:1px solid #222244;">
+      <div style="font-size:28px;margin-bottom:8px;">🔷</div>
+      <div style="color:white;font-weight:600;font-size:14px;">PostgreSQL</div>
+      <div style="color:#5555aa;font-size:11px;">Database</div>
+    </div>
+    <div style="background:#12121f;border-radius:14px;padding:24px;text-align:center;border:1px solid #222244;">
+      <div style="font-size:28px;margin-bottom:8px;">📦</div>
+      <div style="color:white;font-weight:600;font-size:14px;">Riverpod</div>
+      <div style="color:#5555aa;font-size:11px;">State Management</div>
+    </div>
+    <div style="background:#12121f;border-radius:14px;padding:24px;text-align:center;border:1px solid #222244;">
+      <div style="font-size:28px;margin-bottom:8px;">🧭</div>
+      <div style="color:white;font-weight:600;font-size:14px;">GoRouter</div>
+      <div style="color:#5555aa;font-size:11px;">Navigation</div>
+    </div>
+    <div style="background:#12121f;border-radius:14px;padding:24px;text-align:center;border:1px solid #222244;">
+      <div style="font-size:28px;margin-bottom:8px;">🔒</div>
+      <div style="color:white;font-weight:600;font-size:14px;">RLS Policies</div>
+      <div style="color:#5555aa;font-size:11px;">Security</div>
+    </div>
+  </div>
+</section>
+
+<!-- Pricing -->
+<section class="section" id="pricing">
+  <div class="center">
+    <p class="section-label">Pricing</p>
+    <h2>Simple, Transparent Pricing</h2>
+    <p>Start free and scale as you grow. No hidden fees.</p>
+  </div>
+  <div class="plans-grid fade-in">
+    <div class="plan-card">
+      <div class="plan-name">Starter</div>
+      <div class="plan-price">₹0<span>/mo</span></div>
+      <ul class="plan-features">
+        <li>✅ Up to 50 Members</li>
+        <li>✅ 3 Active Plans</li>
+        <li>✅ Basic Dashboard</li>
+        <li>✅ Email Support</li>
+        <li>❌ Multi-Gym</li>
+        <li>❌ Staff Management</li>
+      </ul>
+      <a href="#" class="plan-btn secondary">Get Started</a>
+    </div>
+    <div class="plan-card featured">
+      <div class="plan-name">Pro</div>
+      <div class="plan-price">₹999<span>/mo</span></div>
+      <ul class="plan-features">
+        <li>✅ Unlimited Members</li>
+        <li>✅ Unlimited Plans</li>
+        <li>✅ Full Dashboard + Analytics</li>
+        <li>✅ Priority Support</li>
+        <li>✅ Up to 3 Gyms</li>
+        <li>✅ Staff Management</li>
+        <li>✅ Payment Tracking</li>
+      </ul>
+      <a href="#" class="plan-btn primary">Start Free Trial</a>
+    </div>
+    <div class="plan-card">
+      <div class="plan-name">Enterprise</div>
+      <div class="plan-price">₹2,499<span>/mo</span></div>
+      <ul class="plan-features">
+        <li>✅ Unlimited Everything</li>
+        <li>✅ Unlimited Gyms</li>
+        <li>✅ Advanced Analytics</li>
+        <li>✅ Dedicated Account Manager</li>
+        <li>✅ Custom Integrations</li>
+        <li>✅ 24/7 Phone Support</li>
+        <li>✅ White-label Option</li>
+      </ul>
+      <a href="#" class="plan-btn secondary">Contact Us</a>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <h3>Ready to Transform Your Gym?</h3>
+  <p>Join thousands of gym owners who trust IronBook for their daily operations.</p>
+  <a href="#" class="cta-primary" style="display:inline-block;">Start Free Trial</a>
+  <div class="footer-links">
+    <a href="#">Features</a>
+    <a href="#">Pricing</a>
+    <a href="#">Documentation</a>
+    <a href="#">Contact</a>
+    <a href="#">Privacy Policy</a>
+  </div>
+  <div style="margin-top:40px;color:#333355;font-size:12px;">
+    © 2026 IronBook. All rights reserved. Built with Flutter & Supabase.
+  </div>
+</footer>
+
+</body>
+</html>
