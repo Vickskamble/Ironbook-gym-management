@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/gym_model.dart';
 import '../../core/constants/app_colors.dart';
 import '../../widgets/glass_container.dart';
 import '../../widgets/primary_button.dart';
-import '../../providers/admin_provider.dart';
+import '../../core/services/subscription_service.dart';
 
 class PricingScreen extends ConsumerStatefulWidget {
   const PricingScreen({super.key});
@@ -18,54 +19,6 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
   String? _upgradingPlan;
   final bool _showFreeBanner = false;
 
-  static const _plans = [
-    _PlanData(
-      name: 'Starter',
-      price: '₹999',
-      period: '/month',
-      features: [
-        'Up to 100 members',
-        '1 location',
-        'Basic reports',
-        'Email support',
-      ],
-    ),
-    _PlanData(
-      name: 'Pro',
-      price: '₹1,999',
-      period: '/month',
-      features: [
-        'Unlimited members',
-        'Up to 3 locations',
-        'Advanced reports',
-        'Priority support',
-        'Custom branding',
-      ],
-    ),
-    _PlanData(
-      name: 'Enterprise',
-      price: '₹4,999',
-      period: '/month',
-      features: [
-        'Everything in Pro',
-        'Unlimited locations',
-        'Dedicated manager',
-        'API access',
-        'White-label',
-      ],
-    ),
-  ];
-
-  static const _freePlan = _PlanData(
-    name: 'Free',
-    price: 'Free',
-    period: '',
-    features: [
-      'Up to 20 members',
-      'Basic attendance',
-    ],
-  );
-
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
@@ -75,60 +28,84 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Subscription'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _buildCurrentPlanBanner(gym),
-          if (_showFreeBanner || isFree) ...[
-            const SizedBox(height: 20),
-            _buildPlanCard(
-              plan: _freePlan,
-              isCurrent: isFree,
-              isUpgrading: false,
-              onUpgrade: null,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildTopBar(),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  _buildCurrentPlanBanner(gym),
+                  if (_showFreeBanner || isFree) ...[
+                    const SizedBox(height: 20),
+                    _buildPlanCard(
+                      tier: SubscriptionService.getTier('free')!,
+                      isCurrent: isFree,
+                      isUpgrading: false,
+                      onUpgrade: null,
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4, bottom: 12),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 3,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Choose a Plan',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textSecondary,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ...SubscriptionService.tiers
+                      .where((t) => t.id != 'free')
+                      .map(
+                        (tier) => Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: _buildPlanCard(
+                            tier: tier,
+                            isCurrent: tier.id == currentPlan,
+                            isUpgrading: _upgradingPlan == tier.name,
+                            onUpgrade: tier.id == currentPlan
+                                ? null
+                                : () => _confirmSwitch(tier.name),
+                          ),
+                        ),
+                      ),
+                  const SizedBox(height: 24),
+                ],
+              ),
             ),
           ],
-          const SizedBox(height: 24),
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 12),
-            child: Row(
-              children: [
-                Container(
-                  width: 3,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  'Choose a Plan',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textSecondary,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
-            ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+            onPressed: () => context.pop(),
           ),
-          ..._plans.map((plan) => Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: _buildPlanCard(
-              plan: plan,
-              isCurrent: plan.name.toLowerCase() == currentPlan,
-              isUpgrading: _upgradingPlan == plan.name,
-              onUpgrade: plan.name.toLowerCase() == currentPlan
-                  ? null
-                  : () => _confirmUpgrade(plan.name),
-            ),
-          )),
-          const SizedBox(height: 24),
         ],
       ),
     );
@@ -140,7 +117,8 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
     final isActive = gym.isActive;
     final subscription = gym.subscription;
     final expiresAt = gym.subscriptionExpiresAt;
-    final planLabel = subscription[0].toUpperCase() + subscription.substring(1);
+    final tier = SubscriptionService.getTier(subscription);
+    final planLabel = tier?.name ?? 'Free';
     final statusLabel = isActive ? 'Active' : 'Expired';
     final statusColor = isActive ? AppColors.success : AppColors.danger;
 
@@ -183,7 +161,10 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
               ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
@@ -204,8 +185,11 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
             const SizedBox(height: 14),
             Row(
               children: [
-                Icon(Icons.calendar_today_rounded,
-                    size: 14, color: AppColors.textSecondary),
+                Icon(
+                  Icons.calendar_today_rounded,
+                  size: 14,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   'Expires: ${_formatDate(expiresAt)}',
@@ -220,8 +204,11 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
               const SizedBox(height: 6),
               Row(
                 children: [
-                  Icon(Icons.timer_outlined,
-                      size: 14, color: AppColors.textSecondary),
+                  Icon(
+                    Icons.timer_outlined,
+                    size: 14,
+                    color: AppColors.textSecondary,
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     '$daysRemaining days remaining',
@@ -230,8 +217,9 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
                       color: daysRemaining <= 7
                           ? AppColors.warning
                           : AppColors.textSecondary,
-                      fontWeight:
-                          daysRemaining <= 7 ? FontWeight.w600 : FontWeight.w400,
+                      fontWeight: daysRemaining <= 7
+                          ? FontWeight.w600
+                          : FontWeight.w400,
                     ),
                   ),
                 ],
@@ -255,12 +243,15 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
   }
 
   Widget _buildPlanCard({
-    required _PlanData plan,
+    required SubscriptionTier tier,
     required bool isCurrent,
     required bool isUpgrading,
     required VoidCallback? onUpgrade,
   }) {
-    final isFree = plan.name == 'Free';
+    final isFree = tier.id == 'free';
+    final priceDisplay = tier.price == 0
+        ? 'Free'
+        : '₹${_formatPrice(tier.price)}';
 
     return GlassContainer(
       borderColor: isCurrent ? AppColors.primary.withValues(alpha: 0.3) : null,
@@ -271,7 +262,7 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
           Row(
             children: [
               Text(
-                plan.name,
+                tier.name,
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
@@ -282,12 +273,16 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
               if (isCurrent) ...[
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                        color: AppColors.primary.withValues(alpha: 0.3)),
+                      color: AppColors.primary.withValues(alpha: 0.3),
+                    ),
                   ),
                   child: const Text(
                     'Current Plan',
@@ -306,18 +301,18 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                plan.price,
+                priceDisplay,
                 style: const TextStyle(
                   fontSize: 34,
                   fontWeight: FontWeight.w900,
                   color: AppColors.primary,
                 ),
               ),
-              if (plan.period.isNotEmpty)
+              if (tier.period.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4, left: 2),
                   child: Text(
-                    plan.period,
+                    tier.period,
                     style: const TextStyle(
                       fontSize: 14,
                       color: AppColors.textSecondary,
@@ -329,47 +324,53 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
           const SizedBox(height: 22),
           const Divider(color: AppColors.border, height: 1),
           const SizedBox(height: 18),
-          ...plan.features.map((f) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  margin: const EdgeInsets.only(top: 2),
-                  width: 18,
-                  height: 18,
-                  decoration: BoxDecoration(
-                    color: AppColors.success.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: const Icon(Icons.check_rounded,
-                      size: 14, color: AppColors.success),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    f,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
-                      height: 1.3,
+          ...tier.features.map(
+            (f) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    margin: const EdgeInsets.only(top: 2),
+                    width: 18,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      color: AppColors.success.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Icon(
+                      Icons.check_rounded,
+                      size: 14,
+                      color: AppColors.success,
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      f,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                        height: 1.3,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          )),
+          ),
           const SizedBox(height: 18),
-          if (!isFree && onUpgrade != null)
+          if (!isFree && onUpgrade != null) ...[
             SizedBox(
               width: double.infinity,
               height: 50,
               child: PrimaryButton(
-                text: 'Upgrade',
+                text: _getButtonLabel(tier.name),
                 loading: isUpgrading,
                 onPressed: onUpgrade,
               ),
             ),
+          ],
           if (isCurrent && !isFree)
             SizedBox(
               width: double.infinity,
@@ -394,7 +395,18 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
     );
   }
 
-  Future<void> _confirmUpgrade(String planName) async {
+  String _getButtonLabel(String targetPlanName) {
+    final authState = ref.read(authProvider);
+    final current = authState.gym?.subscription ?? 'free';
+    final isDowngrade = SubscriptionService.isDowngrade(current, targetPlanName.toLowerCase());
+    return isDowngrade ? 'Downgrade' : 'Upgrade';
+  }
+
+  Future<void> _confirmSwitch(String planName) async {
+    final authState = ref.read(authProvider);
+    final current = authState.gym?.subscription ?? 'free';
+    final isDowngrade = SubscriptionService.isDowngrade(current, planName.toLowerCase());
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -404,14 +416,16 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
           side: const BorderSide(color: AppColors.border, width: 0.5),
         ),
         title: Text(
-          'Switch to $planName?',
+          '${isDowngrade ? 'Downgrade' : 'Switch'} to $planName?',
           style: const TextStyle(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.w700,
           ),
         ),
         content: Text(
-          'Your current subscription will be replaced with the $planName plan.',
+          isDowngrade
+              ? 'Your current subscription will be replaced with the $planName plan. Some features may become unavailable.'
+              : 'Your current subscription will be replaced with the $planName plan.',
           style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
         ),
         actions: [
@@ -425,9 +439,9 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(
-              'Confirm',
+              isDowngrade ? 'Downgrade' : 'Confirm',
               style: TextStyle(
-                color: AppColors.primary,
+                color: isDowngrade ? AppColors.warning : AppColors.primary,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -437,11 +451,11 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
     );
 
     if (confirmed == true) {
-      await _performUpgrade(planName);
+      await _performSwitch(planName, isDowngrade);
     }
   }
 
-  Future<void> _performUpgrade(String planName) async {
+  Future<void> _performSwitch(String planName, bool isDowngrade) async {
     final authState = ref.read(authProvider);
     final gym = authState.gym;
     final gymId = authState.gymId;
@@ -458,16 +472,20 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
     setState(() => _upgradingPlan = planName);
 
     try {
-      await ref.read(adminRepositoryProvider).updateSubscription(
-        gymId,
-        planName.toLowerCase(),
-        DateTime.now().add(const Duration(days: 30)),
-      );
+      final service = ref.read(subscriptionServiceProvider);
+
+      if (isDowngrade) {
+        await service.downgradePlan(gymId: gymId, plan: planName.toLowerCase(), context: context);
+      } else {
+        await service.upgradePlan(gymId: gymId, plan: planName.toLowerCase(), context: context);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Upgraded to $planName successfully!'),
+            content: Text(isDowngrade
+                ? 'Downgraded to $planName'
+                : 'Upgraded to $planName successfully!'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -477,7 +495,7 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to upgrade: ${e.toString()}'),
+            content: Text('Failed: ${e.toString()}'),
             backgroundColor: AppColors.danger,
           ),
         );
@@ -494,18 +512,13 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
     ];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
-}
 
-class _PlanData {
-  final String name;
-  final String price;
-  final String period;
-  final List<String> features;
-
-  const _PlanData({
-    required this.name,
-    required this.price,
-    required this.period,
-    required this.features,
-  });
+  String _formatPrice(double price) {
+    if (price >= 1000) {
+      final thousands = (price / 1000).floor();
+      final remainder = (price % 1000).toInt();
+      return '$thousands,${remainder.toString().padLeft(3, '0')}';
+    }
+    return price.toStringAsFixed(0);
+  }
 }

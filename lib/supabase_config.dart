@@ -3,6 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/utils/error_handler.dart';
 
 class SupabaseConfig {
+  static bool _initialized = false;
+
   static Future<Result<void>> initializeWithResult() async {
     try {
       await dotenv.load();
@@ -27,6 +29,7 @@ class SupabaseConfig {
         publishableKey: key,
       );
       
+      _initialized = true;
       ErrorHandler.logInfo('SupabaseConfig', 'Successfully initialized');
       return Result.success(null);
     } catch (e, stack) {
@@ -42,8 +45,14 @@ class SupabaseConfig {
     }
   }
   
-  static SupabaseClient get client => Supabase.instance.client;
+  static SupabaseClient get client {
+    assert(_initialized, 'Supabase not initialized yet. Call initialize() first.');
+    return Supabase.instance.client;
+  }
+  
+  static bool get isInitialized => _initialized;
   
   static String get url => dotenv.env['SUPABASE_URL'] ?? '';
   static String get publishableKey => dotenv.env['SUPABASE_ANON_KEY'] ?? '';
+  static String get razorpayKeyId => dotenv.env['RAZORPAY_KEY_ID'] ?? '';
 }

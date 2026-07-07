@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../repositories/auth_repository.dart';
@@ -11,7 +12,7 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
 });
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  return AuthRepository();
+  return AuthRepository(Supabase.instance.client);
 });
 
 final gymProvider = StateProvider<GymModel?>((ref) {
@@ -52,33 +53,88 @@ class AuthState {
 
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _authRepository;
-
+  bool _initCalled = false;
   final Completer<void> _initCompleter = Completer<void>();
 
-  AuthNotifier(this._authRepository) : super(AuthState()) {
-    _initAuth();
+  AuthNotifier(this._authRepository) : super(AuthState());
+
+  Future<void> waitForInit() {
+    if (!_initCalled) {
+      _initCalled = true;
+      try {
+        _initAuth();
+      } catch (e) {
+        if (!kReleaseMode) debugPrint('[Auth] waitForInit sync error: $e');
+        if (!_initCompleter.isCompleted) _initCompleter.complete();
+      }
+    }
+    return _initCompleter.future.timeout(
+      const Duration(seconds: 5),
+      onTimeout: () {
+        if (!kReleaseMode) debugPrint('[Auth] waitForInit TIMEOUT - forcing completion');
+        if (!_initCompleter.isCompleted) _initCompleter.complete();
+      },
+    );
   }
 
-  Future<void> waitForInit() => _initCompleter.future;
+  Future<GymModel?> _fetchGym(String? gymId) async {
+    if (gymId == null) return null;
+    try {
+      final response = await Supabase.instance.client
+          .from('gyms')
+          .select()
+          .eq('id', gymId)
+          .maybeSingle()
+          .timeout(const Duration(seconds: 5));
+      if (response == null) return null;
+      return GymModel.fromJson(response);
+    } catch (e) {
+      if (!kReleaseMode) debugPrint('[Auth] _fetchGym error: $e');
+      return null;
+    }
+  }
 
   Future<void> _initAuth() async {
+    if (!kReleaseMode) debugPrint('[Auth] _initAuth started');
     state = state.copyWith(isLoading: true);
 
-    final session = Supabase.instance.client.auth.currentSession;
-    if (session == null) {
-      state = state.copyWith(isLoading: false);
-      _initCompleter.complete();
-      return;
-    }
-
     try {
-      final profile = await _authRepository.getCurrentUser();
-      state = state.copyWith(
-        profile: profile,
-        gymId: profile?.gymId,
-        isLoading: false,
-      );
-    } catch (e) {
+      if (!kReleaseMode) debugPrint('[Auth] Checking currentSession...');
+      final session = Supabase.instance.client.auth.currentSession;
+      if (!kReleaseMode) debugPrint('[Auth] session = ${session != null ? "exists" : "null"}');
+
+      if (session == null) {
+        if (!kReleaseMode) debugPrint('[Auth] No session, skipping profile fetch');
+        state = state.copyWith(isLoading: false);
+        _initCompleter.complete();
+        return;
+      }
+
+      if (!kReleaseMode) debugPrint('[Auth] Fetching current user profile...');
+      final profile = await _authRepository.getCurrentUser()
+          .timeout(const Duration(seconds: 5));
+      if (!kReleaseMode) debugPrint('[Auth] profile = ${profile != null ? "found" : "null"}');
+
+      if (profile != null) {
+        if (!kReleaseMode) debugPrint('[Auth] Fetching gym...');
+        final gym = await _fetchGym(profile.gymId);
+        if (!kReleaseMode) debugPrint('[Auth] gym = ${gym != null ? "found" : "null"}');
+        state = state.copyWith(
+          profile: profile,
+          gym: gym,
+          gymId: profile.gymId,
+          isLoading: false,
+        );
+      } else {
+        if (!kReleaseMode) debugPrint('[Auth] No profile found, staying logged out');
+        state = state.copyWith(isLoading: false);
+      }
+      if (!kReleaseMode) debugPrint('[Auth] _initAuth completed successfully');
+    } catch (e, stack) {
+      if (!kReleaseMode) debugPrint('========== AUTH INIT ERROR ==========');
+      if (!kReleaseMode) debugPrint('Error: $e');
+      if (!kReleaseMode) debugPrint('Stack: $stack');
+      if (!kReleaseMode) debugPrint('======================================');
       state = state.copyWith(isLoading: false);
     }
     if (!_initCompleter.isCompleted) _initCompleter.complete();
@@ -89,7 +145,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String password,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
-    ErrorHandler.logInfo('AuthNotifier', 'Sign in attempt for: $email');
+    ErrorHandler.logInfo('AuthNotifier', 'Sign in attempt');
 
     try {
       final profile = await _authRepository.signIn(
@@ -97,10 +153,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
         password: password,
       );
 
-      ErrorHandler.logInfo('AuthNotifier', 'Sign in successful: ${profile.email}');
+      final gym = profile.gymId != null ? await _fetchGym(profile.gymId) : null;
+
+      ErrorHandler.logInfo('AuthNotifier', 'Sign in successful');
       
       state = state.copyWith(
         profile: profile,
+        gym: gym,
         gymId: profile.gymId,
         isLoading: false,
         error: null,
@@ -122,9 +181,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String gymName,
     required String gymAddress,
     required String phone,
+    String? gymType,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
-    ErrorHandler.logInfo('AuthNotifier', 'Sign up attempt for: $email');
+    ErrorHandler.logInfo('AuthNotifier', 'Sign up attempt');
 
     try {
       final result = await _authRepository.signUp(
@@ -134,16 +194,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
         gymName: gymName,
         gymAddress: gymAddress,
         phone: phone,
+        gymType: gymType,
       );
 
-      if (result == null) {
-        state = state.copyWith(isLoading: false, error: null);
-        return false; // Email confirmation required
+      final (profile, gym) = result;
+      final session = Supabase.instance.client.auth.currentSession;
+
+      if (session == null) {
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Account created! Please check your email to verify, then log in.',
+        );
+        return false;
       }
 
-      final (profile, gym) = result;
-
-      ErrorHandler.logInfo('AuthNotifier', 'Sign up successful: ${profile.email}');
+      ErrorHandler.logInfo('AuthNotifier', 'Sign up successful');
       
       state = state.copyWith(
         profile: profile,
@@ -164,21 +229,106 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  Future<void> signInWithGoogle() async {
+    state = state.copyWith(isLoading: true, error: null);
+    ErrorHandler.logInfo('AuthNotifier', 'Google sign in attempt');
+
+    try {
+      await _authRepository.signInWithGoogle();
+
+      final session = Supabase.instance.client.auth.currentSession;
+      if (session == null) {
+        state = state.copyWith(isLoading: false, error: 'Google sign-in failed');
+        return;
+      }
+
+      final profile = await _authRepository.getCurrentUser();
+      if (profile == null) {
+        state = state.copyWith(isLoading: false, error: 'Could not load profile');
+        return;
+      }
+
+      if (profile.gymId == null) {
+        state = state.copyWith(
+          profile: profile,
+          gymId: null,
+          isLoading: false,
+          error: null,
+        );
+        return;
+      }
+
+      final gym = await _fetchGym(profile.gymId);
+      state = state.copyWith(
+        profile: profile,
+        gym: gym,
+        gymId: profile.gymId,
+        isLoading: false,
+        error: null,
+      );
+    } catch (e, stack) {
+      ErrorHandler.logError('AuthNotifier.signInWithGoogle', e, stack);
+      state = state.copyWith(
+        isLoading: false,
+        error: _getUserFriendlyError(e),
+      );
+    }
+  }
+
   Future<void> signOut() async {
-    state = state.copyWith(isLoading: true);
+    // Immediately reset state for instant UI response
+    state = AuthState(isLoading: false);
     ErrorHandler.logInfo('AuthNotifier', 'Signing out...');
 
     try {
       await _authRepository.signOut();
-      state = AuthState(isLoading: false);
       ErrorHandler.logInfo('AuthNotifier', 'Sign out successful');
     } catch (e, stack) {
       ErrorHandler.logError('AuthNotifier.signOut', e, stack);
+    }
+  }
+
+  Future<void> resetPassword(String email) async {
+    state = state.copyWith(isLoading: true, error: null);
+    ErrorHandler.logInfo('AuthNotifier', 'Password reset requested');
+
+    try {
+      await _authRepository.resetPassword(email);
+      ErrorHandler.logInfo('AuthNotifier', 'Password reset email sent');
+      state = state.copyWith(isLoading: false, error: null);
+    } catch (e, stack) {
+      ErrorHandler.logError('AuthNotifier.resetPassword', e, stack);
       state = state.copyWith(
         isLoading: false,
-        error: 'Sign out failed: ${e.toString()}',
+        error: e.toString().replaceAll('Exception: ', ''),
       );
     }
+  }
+
+  Future<void> updatePassword(String newPassword) async {
+    state = state.copyWith(isLoading: true, error: null);
+    ErrorHandler.logInfo('AuthNotifier', 'Password update requested');
+
+    try {
+      await _authRepository.updatePassword(newPassword);
+      ErrorHandler.logInfo('AuthNotifier', 'Password updated successfully');
+      state = state.copyWith(isLoading: false, error: null);
+    } catch (e, stack) {
+      ErrorHandler.logError('AuthNotifier.updatePassword', e, stack);
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString().replaceAll('Exception: ', ''),
+      );
+    }
+  }
+
+  void updateProfileData(ProfileModel profile, GymModel? gym) {
+    state = AuthState(
+      profile: profile,
+      gym: gym,
+      gymId: profile.gymId,
+      isLoading: false,
+    );
   }
 
   String _getUserFriendlyError(Object error) {
@@ -196,7 +346,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
     
     if (msg.contains('weak password')) {
-      return 'Password is too weak. Please use at least 6 characters.';
+      return 'Password is too weak. Please use at least 8 characters.';
     }
     
     if (msg.contains('network') || 
@@ -213,6 +363,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     
     if (msg.contains('invalid email')) {
       return 'Please enter a valid email address.';
+    }
+
+    if (msg.contains('email confirmation')) {
+      return 'Account created! Check your email to verify, then log in.';
     }
 
     return 'Authentication failed: ${error.toString()}';

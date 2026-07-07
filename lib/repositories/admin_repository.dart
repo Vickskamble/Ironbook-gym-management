@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/utils/error_handler.dart';
 
 class AdminRepository {
   final SupabaseClient _supabase;
@@ -6,6 +7,7 @@ class AdminRepository {
   AdminRepository(this._supabase);
 
   Future<List<Map<String, dynamic>>> getAllGyms() async {
+    ErrorHandler.logStep('AdminRepository.getAllGyms', 'called');
     try {
       final response = await _supabase
           .from('gyms')
@@ -13,12 +15,14 @@ class AdminRepository {
           .order('created_at', ascending: false);
 
       return (response as List).cast<Map<String, dynamic>>();
-    } catch (e) {
+    } catch (e, stack) {
+      ErrorHandler.logError('AdminRepository.getAllGyms', e, stack);
       throw Exception('Failed to load gyms: ${e.toString()}');
     }
   }
 
   Future<Map<String, dynamic>> getPlatformStats() async {
+    ErrorHandler.logStep('AdminRepository.getPlatformStats', 'called');
     try {
       final now = DateTime.now();
       final monthStart = DateTime(now.year, now.month, 1);
@@ -50,7 +54,7 @@ class AdminRepository {
         thisMonthRevenue += (p['final_amount'] as num?) ?? 0;
       }
 
-      return {
+      final result = {
         'totalGyms': (gyms as List).length,
         'totalMembers': (members as List).length,
         'totalRevenue': totalRevenue,
@@ -58,12 +62,16 @@ class AdminRepository {
         'newMembersThisMonth': (newMembersThisMonth as List).length,
         'thisMonthPayments': (thisMonthPayments as List).length,
       };
-    } catch (e) {
+      ErrorHandler.logStep('AdminRepository.getPlatformStats', 'returning result');
+      return result;
+    } catch (e, stack) {
+      ErrorHandler.logError('AdminRepository.getPlatformStats', e, stack);
       throw Exception('Failed to load platform stats: ${e.toString()}');
     }
   }
 
   Future<Map<String, dynamic>> getGymDetail(String gymId) async {
+    ErrorHandler.logStep('AdminRepository.getGymDetail', 'called');
     try {
       final gymResponse = await _supabase
           .from('gyms')
@@ -105,7 +113,8 @@ class AdminRepository {
         'totalStaff': (staff as List).length,
         'totalRevenue': totalRevenue,
       };
-    } catch (e) {
+    } catch (e, stack) {
+      ErrorHandler.logError('AdminRepository.getGymDetail', e, stack);
       throw Exception('Failed to load gym detail: ${e.toString()}');
     }
   }
@@ -115,6 +124,7 @@ class AdminRepository {
     String plan,
     DateTime expiresAt,
   ) async {
+    ErrorHandler.logStep('AdminRepository.updateSubscription', 'called');
     try {
       await _supabase
           .from('gyms')
@@ -123,7 +133,8 @@ class AdminRepository {
             'subscription_expires_at': expiresAt.toIso8601String(),
           })
           .eq('id', gymId);
-    } catch (e) {
+    } catch (e, stack) {
+      ErrorHandler.logError('AdminRepository.updateSubscription', e, stack);
       throw Exception('Failed to update subscription: ${e.toString()}');
     }
   }

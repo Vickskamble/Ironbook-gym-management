@@ -28,37 +28,40 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       CurvedAnimation(parent: _controller, curve: Curves.easeOut),
     );
     _controller.forward();
-    _init();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _init();
+    });
   }
 
   Future<void> _init() async {
-    final authState = ref.read(authProvider);
-
-    if (authState.profile != null) {
-      _goHome(authState.profile!.role);
-      return;
-    }
-
-    if (authState.isLoading) {
+    try {
+      debugPrint('[Splash] _init started');
       await ref.read(authProvider.notifier).waitForInit()
-          .timeout(const Duration(seconds: 8), onTimeout: () => null);
+          .timeout(const Duration(seconds: 5), onTimeout: () => null);
       if (!mounted) return;
-      final updated = ref.read(authProvider);
-      if (updated.profile != null) {
-        _goHome(updated.profile!.role);
+      final authState = ref.read(authProvider);
+
+      if (authState.profile != null) {
+        debugPrint('[Splash] Profile found, navigating to home');
+        _goHome(authState.profile!.role);
         return;
       }
-    }
 
-    if (!mounted) return;
-    final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
-    final savedLang = prefs.getString('language');
-    if (savedLang == null) {
-      context.go('/language');
-    } else {
-      final seenOnboarding = prefs.getBool('seen_onboarding') ?? false;
-      context.go(seenOnboarding ? '/login' : '/onboarding');
+      debugPrint('[Splash] No profile, checking SharedPreferences');
+      final SharedPreferences prefs = await SharedPreferences.getInstance()
+          .timeout(const Duration(seconds: 3));
+      if (!mounted) return;
+      final savedLang = prefs.getString('language');
+      if (savedLang == null) {
+        context.go('/language');
+      } else {
+        final seenOnboarding = prefs.getBool('seen_onboarding') ?? false;
+        context.go(seenOnboarding ? '/login' : '/onboarding');
+      }
+    } catch (e) {
+      debugPrint('[Splash] _init error: $e');
+      if (!mounted) return;
+      context.go('/login');
     }
   }
 

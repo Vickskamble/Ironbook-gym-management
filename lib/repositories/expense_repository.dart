@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/expense_model.dart';
+import '../core/utils/error_handler.dart';
 
 class ExpenseRepository {
   final SupabaseClient _client;
@@ -15,6 +16,7 @@ class ExpenseRepository {
     int? page,
     int limit = 20,
   }) async {
+    ErrorHandler.logStep('ExpenseRepository.getExpenses', 'called');
     try {
       dynamic query = _client
           .from('expenses')
@@ -47,27 +49,43 @@ class ExpenseRepository {
       return (response as List)
           .map((e) => ExpenseModel.fromJson(e))
           .toList();
-    } catch (e) {
+    } catch (e, stack) {
+      ErrorHandler.logError('ExpenseRepository.getExpenses', e, stack);
       throw Exception('Failed to load expenses: ${e.toString()}');
     }
   }
 
   Future<ExpenseModel> addExpense(Map<String, dynamic> data) async {
+    ErrorHandler.logStep('ExpenseRepository.addExpense', 'called');
     try {
-      final receiptPath = data['receipt_url'] as String?;
+      const allowedFields = {'gym_id', 'title', 'amount', 'category', 'note', 'paid_by', 'expense_date', 'receipt_url'};
+      final filtered = Map<String, dynamic>.fromEntries(
+        data.entries.where((e) => allowedFields.contains(e.key)),
+      );
+
+      final amount = (filtered['amount'] as num?) ?? 0;
+      if (amount <= 0) {
+        throw Exception('Expense amount must be greater than zero');
+      }
+      if (amount > 999999999) {
+        throw Exception('Expense amount exceeds maximum allowed');
+      }
+
+      final receiptPath = filtered['receipt_url'] as String?;
       if (receiptPath != null && receiptPath.isNotEmpty && !receiptPath.startsWith('http')) {
         final url = await _uploadReceipt(receiptPath);
-        data['receipt_url'] = url;
+        filtered['receipt_url'] = url;
       }
 
       final response = await _client
           .from('expenses')
-          .insert(data)
+          .insert(filtered)
           .select()
           .single();
 
       return ExpenseModel.fromJson(response);
-    } catch (e) {
+    } catch (e, stack) {
+      ErrorHandler.logError('ExpenseRepository.addExpense', e, stack);
       throw Exception('Failed to add expense: ${e.toString()}');
     }
   }
@@ -77,35 +95,54 @@ class ExpenseRepository {
     String id,
     Map<String, dynamic> data,
   ) async {
+    ErrorHandler.logStep('ExpenseRepository.updateExpense', 'called');
     try {
-      final receiptPath = data['receipt_url'] as String?;
+      const allowedFields = {'title', 'amount', 'category', 'note', 'paid_by', 'expense_date', 'receipt_url'};
+      final filtered = Map<String, dynamic>.fromEntries(
+        data.entries.where((e) => allowedFields.contains(e.key)),
+      );
+
+      if (filtered.containsKey('amount')) {
+        final amount = (filtered['amount'] as num?) ?? 0;
+        if (amount <= 0) {
+          throw Exception('Expense amount must be greater than zero');
+        }
+        if (amount > 999999999) {
+          throw Exception('Expense amount exceeds maximum allowed');
+        }
+      }
+
+      final receiptPath = filtered['receipt_url'] as String?;
       if (receiptPath != null && receiptPath.isNotEmpty && !receiptPath.startsWith('http')) {
         final url = await _uploadReceipt(receiptPath);
-        data['receipt_url'] = url;
+        filtered['receipt_url'] = url;
       }
 
       final response = await _client
           .from('expenses')
-          .update(data)
+          .update(filtered)
           .eq('gym_id', gymId)
           .eq('id', id)
           .select()
           .single();
 
       return ExpenseModel.fromJson(response);
-    } catch (e) {
+    } catch (e, stack) {
+      ErrorHandler.logError('ExpenseRepository.updateExpense', e, stack);
       throw Exception('Failed to update expense: ${e.toString()}');
     }
   }
 
   Future<void> deleteExpense(String gymId, String id) async {
+    ErrorHandler.logStep('ExpenseRepository.deleteExpense', 'called');
     try {
       await _client
           .from('expenses')
           .delete()
           .eq('gym_id', gymId)
           .eq('id', id);
-    } catch (e) {
+    } catch (e, stack) {
+      ErrorHandler.logError('ExpenseRepository.deleteExpense', e, stack);
       throw Exception('Failed to delete expense: ${e.toString()}');
     }
   }
@@ -115,6 +152,7 @@ class ExpenseRepository {
     int? month,
     int? year,
   }) async {
+    ErrorHandler.logStep('ExpenseRepository.getExpenseStats', 'called');
     try {
       final now = DateTime.now();
       final currentMonth = month ?? now.month;
@@ -163,20 +201,25 @@ class ExpenseRepository {
           prevTotal += (e['amount'] as num?) ?? 0;
         }
 
-        return {
+        final result = {
           'monthlyTotal': monthlyTotal,
           'previousMonthTotal': prevTotal,
           'byCategory': byCategory,
           'count': (currentMonthExpenses as List).length,
         };
+        ErrorHandler.logStep('ExpenseRepository.getExpenseStats', 'returning result');
+        return result;
       }
 
-      return {
+      final result = {
         'monthlyTotal': monthlyTotal,
         'byCategory': byCategory,
         'count': (currentMonthExpenses as List).length,
       };
-    } catch (e) {
+      ErrorHandler.logStep('ExpenseRepository.getExpenseStats', 'returning result');
+      return result;
+    } catch (e, stack) {
+      ErrorHandler.logError('ExpenseRepository.getExpenseStats', e, stack);
       throw Exception('Failed to load expense stats: ${e.toString()}');
     }
   }
@@ -188,8 +231,34 @@ class ExpenseRepository {
         throw Exception('File not found');
       }
 
-      final bytes = await file.readAsBytes();
       final ext = filePath.split('.').last.toLowerCase();
+      const allowedExtensions = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'pdf'};
+      if (!allowedExtensions.contains(ext)) {
+        throw Exception('Invalid file type: $ext. Allowed: png, jpg, jpeg, gif, webp, pdf');
+      }
+
+      final fileSize = await file.length();
+      if (fileSize > 5242880) {
+        throw Exception('File too large. Maximum size is 5MB');
+      }
+
+      final raf = await file.open(mode: FileMode.read);
+      try {
+        final header = await raf.read(4);
+        if (ext == 'png') {
+          if (header.length < 4 || header[0] != 0x89 || header[1] != 0x50 || header[2] != 0x4E || header[3] != 0x47) {
+            throw Exception('Invalid PNG file');
+          }
+        } else if (ext == 'jpg' || ext == 'jpeg') {
+          if (header.length < 3 || header[0] != 0xFF || header[1] != 0xD8 || header[2] != 0xFF) {
+            throw Exception('Invalid JPEG file');
+          }
+        }
+      } finally {
+        await raf.close();
+      }
+
+      final bytes = await file.readAsBytes();
       final contentType = ext == 'pdf'
           ? 'application/pdf'
           : ext == 'png'
@@ -205,7 +274,8 @@ class ExpenseRepository {
           );
 
       return _client.storage.from('receipts').getPublicUrl(fileName);
-    } catch (e) {
+    } catch (e, stack) {
+      ErrorHandler.logError('ExpenseRepository._uploadReceipt', e, stack);
       throw Exception('Failed to upload receipt: ${e.toString()}');
     }
   }

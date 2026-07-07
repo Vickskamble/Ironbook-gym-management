@@ -1,0 +1,5 @@
+[info] 'value' is deprecated and shouldn't be used. Use component accessors like .r or .g, or toARGB32 for an explicit conversion (H:\final project\ironbook\test\models\member_model_test.dart:63:33)
+[info] 'value' is deprecated and shouldn't be used. Use component accessors like .r or .g, or toARGB32 for an explicit conversion (H:\final project\ironbook\test\models\member_model_test.dart:66:34)
+[info] 'value' is deprecated and shouldn't be used. Use component accessors like .r or .g, or toARGB32 for an explicit conversion (H:\final project\ironbook\test\models\member_model_test.dart:69:33)
+[info] 'value' is deprecated and shouldn't be used. Use component accessors like .r or .g, or toARGB32 for an explicit conversion (H:\final project\ironbook\test\models\member_model_test.dart:72:34)
+[warning] This class (or a class that this class inherits from) is marked as '@immutable', but one or more of its instance fields aren't final: MockSupabaseQueryBuilder.mockSingleResult, MockSupabaseQueryBuilder.mockMaybeSingleResult, MockSupabaseQueryBuilder.throwOnSelect (H:\final project\ironbook\test\repositories\helpers\mock_supabase.dart:77:7)

@@ -7,6 +7,7 @@ import '../../widgets/custom_text_field.dart';
 import '../../widgets/primary_button.dart';
 import '../../core/utils/validators.dart';
 import '../../core/constants/app_strings.dart';
+import '../../core/constants/app_colors.dart';
 
 class EditMemberScreen extends ConsumerStatefulWidget {
   final String memberId;
@@ -25,6 +26,7 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
   final _addressController = TextEditingController();
   bool _isLoading = false;
   bool _initialized = false;
+  DateTime _joinDate = DateTime.now();
 
   @override
   void dispose() {
@@ -34,6 +36,27 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
     _ageController.dispose();
     _addressController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickJoinDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _joinDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: AppColors.primary,
+            surface: AppColors.surface,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) {
+      setState(() => _joinDate = picked);
+    }
   }
 
   Future<void> _submit() async {
@@ -53,10 +76,13 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
         'address': _addressController.text.trim().isEmpty
             ? null
             : _addressController.text.trim(),
+        'join_date': _joinDate.toIso8601String().split('T')[0],
       };
 
+      final gymId = ref.read(authProvider).gymId;
+      if (gymId == null) return;
       await ref
-          .read(memberListProvider(ref.read(authProvider).gymId!).notifier)
+          .read(memberListProvider(gymId).notifier)
           .updateMember(widget.memberId, data);
 
       if (mounted) {
@@ -80,85 +106,139 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
   Widget build(BuildContext context) {
     final gymId = ref.watch(authProvider.select((s) => s.gymId));
     if (gymId == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Edit Member')),
-        body: const Center(child: CircularProgressIndicator()),
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
       );
     }
     final memberAsync = ref.watch(memberDetailProvider((gymId: gymId, memberId: widget.memberId)));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Member')),
-      body: memberAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('$err')),
-        data: (member) {
-          if (!_initialized) {
-            _nameController.text = member.name;
-            _phoneController.text = member.phone;
-            _emailController.text = member.email ?? '';
-            _ageController.text = member.age?.toString() ?? '';
-            _addressController.text = member.address ?? '';
-            _initialized = true;
-          }
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildTopBar(),
+            Expanded(
+              child: memberAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (err, _) => Center(child: Text('$err')),
+                data: (member) {
+                  if (!_initialized) {
+              _nameController.text = member.name;
+              _phoneController.text = member.phone;
+              _emailController.text = member.email ?? '';
+              _ageController.text = member.age?.toString() ?? '';
+              _addressController.text = member.address ?? '';
+              _joinDate = member.joinDate;
+              _initialized = true;
+            }
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Edit Member Details',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Edit Member Details',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          CustomTextField(
+                            controller: _nameController,
+                            label: AppStrings.name,
+                            validator: (value) =>
+                                Validators.validateRequired(value, AppStrings.name),
+                          ),
+                          const SizedBox(height: 16),
+                          CustomTextField(
+                            controller: _phoneController,
+                            label: AppStrings.phone,
+                            keyboardType: TextInputType.phone,
+                            validator: Validators.validatePhone,
+                          ),
+                          const SizedBox(height: 16),
+                          CustomTextField(
+                            controller: _emailController,
+                            label: '${AppStrings.email} (${AppStrings.optional})',
+                            keyboardType: TextInputType.emailAddress,
+                          ),
+                          const SizedBox(height: 16),
+                          CustomTextField(
+                            controller: _ageController,
+                            label: '${AppStrings.age} (${AppStrings.optional})',
+                            keyboardType: TextInputType.number,
+                          ),
+                          const SizedBox(height: 16),
+                          CustomTextField(
+                            controller: _addressController,
+                            label: '${AppStrings.address} (${AppStrings.optional})',
+                            maxLines: 3,
+                          ),
+                          const SizedBox(height: 16),
+                          GestureDetector(
+                            onTap: _pickJoinDate,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppColors.border),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.calendar_today_rounded, color: AppColors.primary, size: 20),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('Join Date', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '${_joinDate.day}/${_joinDate.month}/${_joinDate.year}',
+                                          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(Icons.edit_calendar_rounded, color: AppColors.textMuted, size: 18),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+                          PrimaryButton(
+                            text: 'Update Member',
+                            loading: _isLoading,
+                            onPressed: _submit,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  CustomTextField(
-                    controller: _nameController,
-                    label: AppStrings.name,
-                    validator: (value) =>
-                        Validators.validateRequired(value, AppStrings.name),
-                  ),
-                  const SizedBox(height: 16),
-                  CustomTextField(
-                    controller: _phoneController,
-                    label: AppStrings.phone,
-                    keyboardType: TextInputType.phone,
-                    validator: Validators.validatePhone,
-                  ),
-                  const SizedBox(height: 16),
-                  CustomTextField(
-                    controller: _emailController,
-                    label: '${AppStrings.email} (${AppStrings.optional})',
-                    keyboardType: TextInputType.emailAddress,
-                  ),
-                  const SizedBox(height: 16),
-                  CustomTextField(
-                    controller: _ageController,
-                    label: '${AppStrings.age} (${AppStrings.optional})',
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 16),
-                  CustomTextField(
-                    controller: _addressController,
-                    label: '${AppStrings.address} (${AppStrings.optional})',
-                    maxLines: 3,
-                  ),
-                  const SizedBox(height: 32),
-                  PrimaryButton(
-                    text: 'Update Member',
-                    loading: _isLoading,
-                    onPressed: _submit,
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
+                  );
+          },
+        ),
+      ),
+    ],
+  ),
+));
+  }
+
+  Widget _buildTopBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+            onPressed: () => context.pop(),
+          ),
+        ],
       ),
     );
   }

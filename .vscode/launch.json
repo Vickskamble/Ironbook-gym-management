@@ -1,11 +1,39 @@
 {
+    "version": "0.2.0",
     "configurations": [
-        
         {
-            "type": "chrome",
-            "name": "https://github.com/corbado/flutter-passkeys/releases/download/2.4.0/bundle.js",
+            "name": "ironbook (Flutter RMX3231)",
+            "type": "dart",
             "request": "launch",
-            "url": "https://github.com/corbado/flutter-passkeys/releases/download/2.4.0/bundle.js"
+            "flutterMode": "debug",
+            "deviceId": "RMX3231",
+            "program": "lib/main.dart",
+            "args": [
+                "--dart-define=flutter.native_splash.skip=true",
+                "--no-pub"
+            ]
+        },
+        {
+            "name": "ironbook (Chrome)",
+            "type": "dart",
+            "request": "launch",
+            "flutterMode": "debug",
+            "deviceId": "chrome",
+            "program": "lib/main.dart",
+            "args": [
+                "--dart-define=flutter.native_splash.skip=true"
+            ]
+        },
+        {
+            "name": "ironbook (Edge)",
+            "type": "dart",
+            "request": "launch",
+            "flutterMode": "debug",
+            "deviceId": "edge",
+            "program": "lib/main.dart",
+            "args": [
+                "--dart-define=flutter.native_splash.skip=true"
+            ]
         }
     ]
 }

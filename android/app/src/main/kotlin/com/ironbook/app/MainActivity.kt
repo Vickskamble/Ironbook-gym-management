@@ -1,4 +1,4 @@
-package com.example.ironbook
+package com.ironbook.app
 
 import io.flutter.embedding.android.FlutterActivity
 

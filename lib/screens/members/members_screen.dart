@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/member_provider.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/utils/responsive.dart';
 import '../../models/member_model.dart';
 
 class MembersScreen extends ConsumerStatefulWidget {
@@ -380,12 +381,14 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        member.name,
+                         member.name,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 2),
                       Row(
@@ -402,28 +405,33 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: member.planName != null
-                              ? const Color(0x336366F1)
-                              : const Color(0x1A475569),
-                          borderRadius: BorderRadius.circular(99),
-                        ),
-                        child: Text(
-                          member.planName ?? 'No Plan Assigned',
-                          style: TextStyle(
-                            color: member.planName != null
-                                ? const Color(0xFF818CF8)
-                                : AppColors.textMuted,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
+                        Container(
+                         padding: const EdgeInsets.symmetric(
+                           horizontal: 8,
+                           vertical: 3,
+                         ),
+                         decoration: BoxDecoration(
+                           color: member.planName != null
+                               ? const Color(0x336366F1)
+                               : const Color(0x1A475569),
+                           borderRadius: BorderRadius.circular(99),
+                         ),
+                         constraints: BoxConstraints(
+                           maxWidth: Responsive.width(context) * 0.25,
+                         ),
+                         child: Text(
+                           member.planName ?? 'No Plan Assigned',
+                           style: TextStyle(
+                             color: member.planName != null
+                                 ? const Color(0xFF818CF8)
+                                 : AppColors.textMuted,
+                             fontSize: 9,
+                             fontWeight: FontWeight.w700,
+                           ),
+                           maxLines: 1,
+                           overflow: TextOverflow.ellipsis,
+                         ),
+                       ),
                     ],
                   ),
                 ),

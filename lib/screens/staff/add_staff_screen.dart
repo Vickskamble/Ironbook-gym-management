@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../providers/staff_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/staff_model.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/utils/responsive.dart';
 import '../../widgets/glass_container.dart';
 import '../../widgets/primary_button.dart';
 import '../../widgets/custom_text_field.dart';
@@ -22,16 +24,11 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _salaryController = TextEditingController();
   String _selectedRole = 'Trainer';
-  String _selectedShift = 'Full Day';
-  final _specializationController = TextEditingController();
-  DateTime _joinDate = DateTime.now();
   String? _profilePicPath;
   bool _isLoading = false;
 
   final List<String> _roles = ['Trainer', 'Receptionist', 'Cleaner', 'Manager', 'Other'];
-  final List<String> _shifts = ['Morning', 'Evening', 'Full Day'];
 
   @override
   void dispose() {
@@ -39,31 +36,7 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
     _phoneController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
-    _salaryController.dispose();
-    _specializationController.dispose();
     super.dispose();
-  }
-
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _joinDate,
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now(),
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.dark(
-            primary: AppColors.primary,
-            surface: AppColors.surface,
-            onSurface: AppColors.textPrimary,
-          ),
-        ),
-        child: child!,
-      ),
-    );
-    if (picked != null) {
-      setState(() => _joinDate = picked);
-    }
   }
 
   Future<void> _pickPhoto() async {
@@ -88,14 +61,8 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
         phone: _phoneController.text.trim(),
         email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
         role: _selectedRole,
-        salary: double.tryParse(_salaryController.text.trim()) ?? 0.0,
-        joinDate: _joinDate,
         status: 'Active',
         profilePic: _profilePicPath,
-        specialization: _selectedRole == 'Trainer' && _specializationController.text.trim().isNotEmpty
-            ? _specializationController.text.trim()
-            : null,
-        shift: _selectedShift,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
@@ -124,10 +91,15 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Staff Member')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Form(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildTopBar(),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Form(
           key: _formKey,
           child: Column(
             children: [
@@ -148,8 +120,8 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
                       onTap: _pickPhoto,
                       child: Center(
                         child: Container(
-                          width: 90,
-                          height: 90,
+                          width: Responsive.avatarSize(context) * 1.6,
+                          height: Responsive.avatarSize(context) * 1.6,
                           decoration: BoxDecoration(
                             color: AppColors.surface2,
                             borderRadius: BorderRadius.circular(20),
@@ -241,55 +213,6 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
                         if (val != null) setState(() => _selectedRole = val);
                       },
                     ),
-                    const SizedBox(height: 16),
-                    CustomTextField(
-                      controller: _salaryController,
-                      label: 'Salary (\u20B9/month)',
-                      hintText: 'Enter monthly salary',
-                      keyboardType: TextInputType.number,
-                      validator: (value) => Validators.validatePositiveNumber(value, 'Salary'),
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      initialValue: _selectedShift,
-                      decoration: const InputDecoration(
-                        labelText: 'Shift',
-                        filled: true,
-                      ),
-                      dropdownColor: AppColors.surface,
-                      items: _shifts.map((s) => DropdownMenuItem(
-                        value: s,
-                        child: Text(s),
-                      )).toList(),
-                      onChanged: (val) {
-                        if (val != null) setState(() => _selectedShift = val);
-                      },
-                    ),
-                    if (_selectedRole == 'Trainer') ...[
-                      const SizedBox(height: 16),
-                      CustomTextField(
-                        controller: _specializationController,
-                        label: 'Specialization',
-                        hintText: 'e.g. Strength, Yoga, Cardio',
-                      ),
-                    ],
-                    const SizedBox(height: 16),
-                    GestureDetector(
-                      onTap: _pickDate,
-                      child: AbsorbPointer(
-                        child: TextFormField(
-                          decoration: const InputDecoration(
-                            labelText: 'Join Date',
-                            suffixIcon: Icon(Icons.calendar_today_rounded),
-                            filled: true,
-                          ),
-                          controller: TextEditingController(
-                            text: '${_joinDate.day}/${_joinDate.month}/${_joinDate.year}',
-                          ),
-                          validator: (value) => Validators.validateRequired(value, 'Join date'),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -303,6 +226,24 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
             ],
           ),
         ),
+      ),
+    ),
+    ],
+  ),
+),
+);
+  }
+
+  Widget _buildTopBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+            onPressed: () => context.pop(),
+          ),
+        ],
       ),
     );
   }

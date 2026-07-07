@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/member_model.dart';
+import '../core/utils/error_handler.dart';
 
 class DashboardStats {
   final int totalMembers;
@@ -42,9 +43,12 @@ class MonthlyRevenue {
 }
 
 class DashboardRepository {
-  final SupabaseClient _client = Supabase.instance.client;
+  final SupabaseClient _client;
+
+  DashboardRepository(this._client);
 
   Future<DashboardStats> getDashboardStats(String gymId) async {
+    ErrorHandler.logStep('DashboardRepository.getDashboardStats', 'called');
     try {
       final totalMembersResponse = await _client
           .from('members')
@@ -72,6 +76,12 @@ class DashboardRepository {
           .eq('gym_id', gymId)
           .gte('paid_at', firstOfMonth.toIso8601String());
 
+      final thisMonthSales = await _client
+          .from('inventory_sales')
+          .select('total_price')
+          .eq('gym_id', gymId)
+          .gte('sold_at', firstOfMonth.toIso8601String());
+
       final endOfWeek = today.add(const Duration(days: 7));
 
       final expiringMembersResponse = await _client
@@ -86,37 +96,59 @@ class DashboardRepository {
       for (final p in thisMonthPayments) {
         thisMonthRevenue += (p['final_amount'] as num?) ?? 0;
       }
+      for (final s in thisMonthSales) {
+        thisMonthRevenue += (s['total_price'] as num?) ?? 0;
+      }
 
-      return DashboardStats(
+      final result = DashboardStats(
         totalMembers: (totalMembersResponse as List).length,
         activeMembers: (activeMembersResponse as List).length,
         expiredMembers: (expiredMembersResponse as List).length,
         thisMonthRevenue: thisMonthRevenue,
         expiringSoon: (expiringMembersResponse as List).length,
       );
-    } catch (e) {
+      ErrorHandler.logStep('DashboardRepository.getDashboardStats', 'returning result');
+      return result;
+    } catch (e, stack) {
+      ErrorHandler.logError('DashboardRepository.getDashboardStats', e, stack);
       throw Exception('Failed to load dashboard stats: $e');
     }
   }
 
   Future<List<MonthlyRevenue>> getLastSixMonthsRevenue(String gymId) async {
+    ErrorHandler.logStep('DashboardRepository.getLastSixMonthsRevenue', 'called');
     try {
       final today = DateTime.now();
       final sixMonthsAgo = DateTime(today.year, today.month - 6, 1);
 
-      final response = await _client
+      final payments = await _client
           .from('payments')
           .select('paid_at, final_amount')
           .eq('gym_id', gymId)
           .gte('paid_at', sixMonthsAgo.toIso8601String())
           .order('paid_at', ascending: true);
 
+      final sales = await _client
+          .from('inventory_sales')
+          .select('sold_at, total_price')
+          .eq('gym_id', gymId)
+          .gte('sold_at', sixMonthsAgo.toIso8601String())
+          .order('sold_at', ascending: true);
+
       final Map<String, num> monthlyRevenue = {};
-      for (final payment in response) {
+      for (final payment in payments) {
         final paidAt = DateTime.parse(payment['paid_at'] as String);
         final monthKey =
             '${paidAt.month.toString().padLeft(2, '0')} ${paidAt.year}';
         final amount = (payment['final_amount'] as num?) ?? 0;
+        monthlyRevenue[monthKey] =
+            (monthlyRevenue[monthKey] ?? 0) + amount;
+      }
+      for (final sale in sales) {
+        final soldAt = DateTime.parse(sale['sold_at'] as String);
+        final monthKey =
+            '${soldAt.month.toString().padLeft(2, '0')} ${soldAt.year}';
+        final amount = (sale['total_price'] as num?) ?? 0;
         monthlyRevenue[monthKey] =
             (monthlyRevenue[monthKey] ?? 0) + amount;
       }
@@ -133,13 +165,15 @@ class DashboardRepository {
       }
 
       return result;
-    } catch (e) {
+    } catch (e, stack) {
+      ErrorHandler.logError('DashboardRepository.getLastSixMonthsRevenue', e, stack);
       throw Exception('Failed to load revenue data: $e');
     }
   }
 
   Future<List<MemberModel>> getRecentMembers(String gymId,
       {int limit = 5}) async {
+    ErrorHandler.logStep('DashboardRepository.getRecentMembers', 'called');
     try {
       final response = await _client
           .from('members')
@@ -151,12 +185,14 @@ class DashboardRepository {
       return (response as List)
           .map((item) => MemberModel.fromJson(item))
           .toList();
-    } catch (e) {
+    } catch (e, stack) {
+      ErrorHandler.logError('DashboardRepository.getRecentMembers', e, stack);
       throw Exception('Failed to load recent members: $e');
     }
   }
 
   Future<List<MemberModel>> getExpiringMembers(String gymId) async {
+    ErrorHandler.logStep('DashboardRepository.getExpiringMembers', 'called');
     try {
       final today = DateTime.now();
       final endOfWeek = today.add(const Duration(days: 7));
@@ -173,7 +209,8 @@ class DashboardRepository {
       return (response as List)
           .map((item) => MemberModel.fromJson(item))
           .toList();
-    } catch (e) {
+    } catch (e, stack) {
+      ErrorHandler.logError('DashboardRepository.getExpiringMembers', e, stack);
       throw Exception('Failed to load expiring members: $e');
     }
   }

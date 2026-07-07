@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../providers/attendance_provider.dart';
 import '../../providers/member_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -115,12 +116,16 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
     if (gymId == null) {
       return Scaffold(
         backgroundColor: AppColors.background,
-        appBar: AppBar(
-          title: const Text('Mark Attendance'),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildTopBar(),
+              const Expanded(
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            ],
+          ),
         ),
-        body: const Center(child: CircularProgressIndicator()),
       );
     }
     final membersAsync = ref.watch(memberListProvider(gymId));
@@ -128,30 +133,49 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Mark Attendance'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
-      body: RefreshIndicator(
-        onRefresh: _refresh,
-        color: AppColors.primary,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
+      body: SafeArea(
+        child: Column(
           children: [
-            _buildSearchField(),
-            const SizedBox(height: 12),
-            _buildModeToggle(),
-            const SizedBox(height: 16),
-            if (_searchController.text.isNotEmpty) ...[
-              _buildMemberResults(membersAsync),
-              const SizedBox(height: 24),
-            ],
-            _buildAttendanceHeader(),
-            const SizedBox(height: 12),
-            _buildAttendanceContent(todayAttendanceAsync),
+            _buildTopBar(),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _refresh,
+                color: AppColors.primary,
+                child: ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    _buildSearchField(),
+                    const SizedBox(height: 12),
+                    _buildModeToggle(),
+                    const SizedBox(height: 16),
+                    if (_searchController.text.isNotEmpty) ...[
+                      _buildMemberResults(membersAsync),
+                      const SizedBox(height: 24),
+                    ],
+                    _buildAttendanceHeader(),
+                    const SizedBox(height: 12),
+                    _buildAttendanceContent(todayAttendanceAsync),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildTopBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+            onPressed: () => context.pop(),
+          ),
+          const Spacer(),
+        ],
       ),
     );
   }

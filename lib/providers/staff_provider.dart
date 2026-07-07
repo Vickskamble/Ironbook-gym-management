@@ -4,6 +4,7 @@ import '../models/staff_model.dart';
 import '../models/profile_model.dart';
 import '../repositories/staff_repository.dart';
 import 'auth_provider.dart';
+import 'package:ironbook/core/utils/error_handler.dart';
 
 final staffRepositoryProvider = Provider<StaffRepository>((ref) {
   return StaffRepository(Supabase.instance.client);
@@ -18,6 +19,7 @@ final staffListProvider = staffProvider;
 class StaffNotifier extends AsyncNotifier<List<StaffModel>> {
   @override
   Future<List<StaffModel>> build() async {
+    ErrorHandler.logStep('StaffNotifier', 'build');
     final gymId = ref.read(authProvider).gymId;
     if (gymId == null) return [];
     final repo = ref.read(staffRepositoryProvider);
@@ -26,25 +28,11 @@ class StaffNotifier extends AsyncNotifier<List<StaffModel>> {
   }
 
   StaffModel _profileToStaff(ProfileModel p) {
-    return StaffModel(
-      id: p.id,
-      gymId: p.gymId ?? '',
-      name: p.name,
-      phone: p.phone,
-      email: p.email,
-      role: p.role,
-      salary: 0.0,
-      joinDate: p.createdAt,
-      status: p.isActive ? 'Active' : 'Inactive',
-      profilePic: p.avatarUrl,
-      specialization: null,
-      shift: null,
-      createdAt: p.createdAt,
-      updatedAt: p.updatedAt,
-    );
+    return StaffModel.fromProfile(p);
   }
 
   Future<void> _refetch() async {
+    ErrorHandler.logStep('StaffNotifier', '_refetch');
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       final gymId = ref.read(authProvider).gymId;
@@ -56,6 +44,7 @@ class StaffNotifier extends AsyncNotifier<List<StaffModel>> {
   }
 
   Future<void> addStaff(StaffModel staff) async {
+    ErrorHandler.logStep('StaffNotifier', 'addStaff', {'name': staff.name});
     final gymId = ref.read(authProvider).gymId;
     if (gymId == null) return;
     final data = _staffToMap(staff, gymId);
@@ -64,6 +53,7 @@ class StaffNotifier extends AsyncNotifier<List<StaffModel>> {
   }
 
   Future<void> updateStaff(String id, StaffModel data) async {
+    ErrorHandler.logStep('StaffNotifier', 'updateStaff', {'id': id});
     final gymId = ref.read(authProvider).gymId;
     if (gymId == null) return;
     final map = _staffToMap(data, gymId);
@@ -72,6 +62,7 @@ class StaffNotifier extends AsyncNotifier<List<StaffModel>> {
   }
 
   Future<void> terminateStaff(String id) async {
+    ErrorHandler.logStep('StaffNotifier', 'terminateStaff', {'id': id});
     final gymId = ref.read(authProvider).gymId;
     if (gymId == null) return;
     await ref.read(staffRepositoryProvider).terminateStaff(gymId, id);
@@ -79,6 +70,7 @@ class StaffNotifier extends AsyncNotifier<List<StaffModel>> {
   }
 
   Future<void> filterByRole(String role) async {
+    ErrorHandler.logStep('StaffNotifier', 'filterByRole', {'role': role});
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       final gymId = ref.read(authProvider).gymId;
@@ -95,12 +87,8 @@ class StaffNotifier extends AsyncNotifier<List<StaffModel>> {
       'phone': staff.phone,
       'email': staff.email,
       'role': staff.role,
-      'salary': staff.salary,
       'gym_id': gymId,
       'is_active': staff.status != 'Terminated',
-      'join_date': staff.joinDate.toIso8601String(),
-      'shift': staff.shift,
-      'specialization': staff.specialization,
     };
     if (staff.profilePic != null) {
       map['avatar_url'] = staff.profilePic;

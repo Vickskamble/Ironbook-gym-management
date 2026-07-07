@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:go_router/go_router.dart';
-import '../../providers/dashboard_provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/notification_provider.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/utils/responsive.dart';
 import '../../models/member_model.dart';
 import '../../repositories/dashboard_repository.dart';
+import 'package:fl_chart/fl_chart.dart';
+import '../../providers/dashboard_provider.dart';
+import '../../providers/notification_provider.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -44,12 +45,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final expiringMembersAsync = ref.watch(expiringMembersProvider(gid));
     final unreadCountAsync = ref.watch(unreadCountProvider(gid));
 
-    final isLoading = statsAsync.isLoading ||
+    final isLoading =
+        statsAsync.isLoading ||
         revenueAsync.isLoading ||
         recentMembersAsync.isLoading ||
         expiringMembersAsync.isLoading;
 
-    final hasError = statsAsync.hasError ||
+    final hasError =
+        statsAsync.hasError ||
         revenueAsync.hasError ||
         recentMembersAsync.hasError ||
         expiringMembersAsync.hasError;
@@ -60,27 +63,39 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         child: isLoading
             ? const Center(child: CircularProgressIndicator())
             : hasError
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                        const SizedBox(height: 16),
-                        Text('Error loading dashboard',
-                            style: TextStyle(fontSize: 18, color: theme.colorScheme.onSurface)),
-                        const SizedBox(height: 8),
-                        TextButton(onPressed: _loadData, child: const Text('Retry')),
-                      ],
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: Colors.red,
                     ),
-                  )
-                : _buildContent(
-                    theme,
-                    statsAsync.value!,
-                    revenueAsync.value!,
-                    recentMembersAsync.value!,
-                    expiringMembersAsync.value!,
-                    unreadCountAsync.value ?? 0,
-                  ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Error loading dashboard',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: _loadData,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              )
+            : _buildContent(
+                theme,
+                statsAsync.value!,
+                revenueAsync.value!,
+                recentMembersAsync.value!,
+                expiringMembersAsync.value!,
+                unreadCountAsync.value ?? 0,
+              ),
       ),
     );
   }
@@ -95,11 +110,31 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   ) {
     final now = DateTime.now();
     final months = [
-      'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE',
-      'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'
+      'JANUARY',
+      'FEBRUARY',
+      'MARCH',
+      'APRIL',
+      'MAY',
+      'JUNE',
+      'JULY',
+      'AUGUST',
+      'SEPTEMBER',
+      'OCTOBER',
+      'NOVEMBER',
+      'DECEMBER',
     ];
-    final days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
-    final gymName = ref.watch(authProvider.select((s) => s.gym?.name ?? 'IronBook Gym'));
+    final days = [
+      'MONDAY',
+      'TUESDAY',
+      'WEDNESDAY',
+      'THURSDAY',
+      'FRIDAY',
+      'SATURDAY',
+      'SUNDAY',
+    ];
+    final gymName = ref.watch(
+      authProvider.select((s) => s.gym?.name ?? 'Gym'),
+    );
 
     return SingleChildScrollView(
       child: Column(
@@ -126,7 +161,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.surface,
                     border: Border.all(color: AppColors.border),
@@ -134,7 +172,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   ),
                   child: Text(
                     gymName,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
                 const Spacer(),
@@ -142,17 +184,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   onPressed: _loadData,
                   icon: const Icon(Icons.refresh, size: 20),
                   color: AppColors.textSecondary,
-                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  constraints: const BoxConstraints(
+                    minWidth: 36,
+                    minHeight: 36,
+                  ),
                   padding: EdgeInsets.zero,
                 ),
                 const SizedBox(width: 4),
                 Stack(
                   children: [
                     IconButton(
-                      onPressed: () => context.go('/notifications/bulk'),
+                      onPressed: () => context.push('/notifications/bulk'),
                       icon: const Icon(Icons.notifications_none, size: 20),
                       color: AppColors.textSecondary,
-                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                      constraints: const BoxConstraints(
+                        minWidth: 36,
+                        minHeight: 36,
+                      ),
                       padding: EdgeInsets.zero,
                     ),
                     if (unreadCount > 0)
@@ -165,11 +213,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             color: AppColors.danger,
                             shape: BoxShape.circle,
                           ),
-                          constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 16,
+                          ),
                           child: Text(
                             unreadCount > 99 ? '99+' : '$unreadCount',
                             style: const TextStyle(
-                              color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -188,12 +241,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               children: [
                 Text(
                   '${days[now.weekday - 1]}, ${now.day} ${months[now.month - 1]}',
-                  style: const TextStyle(fontSize: 11, color: AppColors.textMuted, letterSpacing: 1),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textMuted,
+                    letterSpacing: 1,
+                  ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'Hello, Admin 👋',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white),
+                Text(
+                  'Hello, $gymName 👋',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -206,17 +269,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(18),
-                gradient: expiringMembers.isEmpty
-                    ? const LinearGradient(
-                        colors: [Color(0xFF10B981), Color(0xFF059669)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      )
-                    : const LinearGradient(
-                        colors: [Color(0xFF4F46E5), Color(0xFF7C3AED), Color(0xFF6D28D9)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+                gradient: const LinearGradient(
+                colors: [
+                  Color(0xFF4F46E5),
+                  Color(0xFF7C3AED),
+                  Color(0xFF6D28D9),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               ),
               child: Stack(
                 children: [
@@ -248,62 +309,78 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(99),
                         ),
-                        child: const Text(
-                          'ALERT',
-                          style: TextStyle(
-                            color: Colors.white, fontSize: 10,
-                            fontWeight: FontWeight.w700, letterSpacing: 1,
+                        child: Text(
+                          expiringMembers.isEmpty ? 'NOTIFICATIONS 📢' : 'ALERT✨',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1,
                           ),
                         ),
                       ),
                       const SizedBox(height: 12),
-                      expiringMembers.isEmpty
-                          ? const Text(
-                              'All members active',
-                              style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
-                            )
-                          : Text(
-                              '${expiringMembers.length} Member${expiringMembers.length == 1 ? '' : 's'} Expiring Soon',
-                              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
-                            ),
+                      Text(
+                        expiringMembers.isEmpty
+                            ? 'Send Notification'
+                            : '${expiringMembers.length} Member${expiringMembers.length == 1 ? '' : 's'} Expiring Soon',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                       const SizedBox(height: 4),
-                      expiringMembers.isEmpty
-                          ? const SizedBox()
-                          : Text(
-                              'Their membership is ending within 7 days',
-                              style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13),
-                            ),
-                      if (expiringMembers.isNotEmpty) ...[
-                        const SizedBox(height: 14),
-                        GestureDetector(
-                          onTap: () => context.go('/notifications/bulk'),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(99),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.notifications_active, size: 14, color: Color(0xFF4F46E5)),
-                                SizedBox(width: 6),
-                                Text(
-                                  'Notify Now',
-                                  style: TextStyle(
-                                    color: Color(0xFF4F46E5), fontSize: 12, fontWeight: FontWeight.w700,
-                                  ),
+                      Text(
+                        expiringMembers.isEmpty
+                            ? 'Message all or selected members'
+                            : 'Their membership is ending within 7 days',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      GestureDetector(
+                        onTap: () => context.push('/notifications/bulk'),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.notifications_active,
+                                size: 14,
+                                color: Color(0xFF4F46E5),
+                              ),
+                              SizedBox(width: 6),
+                              Text(
+                                'Send Notification',
+                                style: TextStyle(
+                                  color: Color(0xFF4F46E5),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
+                      ),
                     ],
                   ),
                 ],
@@ -314,12 +391,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: GridView.count(
-              crossAxisCount: 2,
+              crossAxisCount: Responsive.gridColumns(context),
               mainAxisSpacing: 12,
               crossAxisSpacing: 12,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              childAspectRatio: 1.2,
+              childAspectRatio: Responsive.isTablet(context) ? 1.5 : 1.2,
               children: [
                 _buildStatCard(
                   icon: Icons.people_alt_rounded,
@@ -344,11 +421,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   accentColor: const Color(0xFFF59E0B),
                   value: stats.expiringSoon.toString(),
                   label: 'Expiring Soon',
+                  onTap: () => context.go('/notifications/bulk'),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 20),
           _buildRevenueCard(theme, revenueData),
           const SizedBox(height: 20),
           _buildRecentActivity(theme, recentMembers),
@@ -356,7 +433,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: GestureDetector(
-              onTap: () => context.go('/members/add'),
+              onTap: () => context.push('/members/add'),
               child: Container(
                 width: double.infinity,
                 height: 52,
@@ -378,7 +455,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 child: const Center(
                   child: Text(
                     'Add New Member',
-                    style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
@@ -395,8 +476,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     required Color accentColor,
     required String value,
     required String label,
+    VoidCallback? onTap,
   }) {
-    return Container(
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -436,14 +520,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           Text(
             value,
             style: const TextStyle(
-              fontSize: 26, fontWeight: FontWeight.w900,
-              letterSpacing: -1, color: Colors.white,
+              fontSize: 26,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -1,
+              color: Colors.white,
             ),
           ),
           const SizedBox(height: 2),
-          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textSecondary,
+            ),
+          ),
         ],
       ),
+    ),
     );
   }
 
@@ -469,74 +563,106 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceLight,
-                  borderRadius: BorderRadius.circular(99),
-                ),
-                child: const Text(
-                  'Last 6 Months',
-                  style: TextStyle(fontSize: 10, color: AppColors.textSecondary),
-                ),
+                decoration: BoxDecoration(color: AppColors.surfaceLight, borderRadius: BorderRadius.circular(99)),
+                child: const Text('Last 6 Months', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
               ),
             ],
           ),
           const SizedBox(height: 16),
           Text(
-            'Rs${totalRevenue.toStringAsFixed(0)}',
-            style: const TextStyle(
-              fontSize: 28, fontWeight: FontWeight.w900, color: Color(0xFF10B981),
-            ),
+            '₹${totalRevenue.toStringAsFixed(0)}',
+            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Color(0xFF10B981)),
           ),
           const SizedBox(height: 16),
           if (revenueData.isNotEmpty)
             SizedBox(
-              height: 72,
-              child: BarChart(
-                BarChartData(
-                  alignment: BarChartAlignment.spaceAround,
-                  maxY: _getMaxRevenue(revenueData),
-                  barTouchData: BarTouchData(enabled: false),
-                  titlesData: FlTitlesData(
+              height: 140,
+              child: LineChart(
+                LineChartData(
+                  minX: 0,
+                  maxX: (revenueData.length - 1).toDouble(),
+                  minY: 0,
+                  maxY: _getMaxRevenue(revenueData) * 1.2,
+                  lineTouchData: LineTouchData(
+                    enabled: true,
+                    touchTooltipData: LineTouchTooltipData(
+                      getTooltipItems: (spots) => spots.map((s) => LineTooltipItem('₹${s.y.toInt()}', const TextStyle(color: Colors.white, fontWeight: FontWeight.w700))).toList(),
+                    ),
+                  ),
+                  gridData: FlGridData(
                     show: true,
+                    drawVerticalLine: false,
+                    horizontalInterval: _getMaxRevenue(revenueData) > 0 ? _getMaxRevenue(revenueData) / 4 : 1,
+                    getDrawingHorizontalLine: (value) => FlLine(color: AppColors.border.withValues(alpha: 0.3), strokeWidth: 1),
+                  ),
+                  titlesData: FlTitlesData(
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
+                        reservedSize: 18,
                         getTitlesWidget: (value, meta) {
-                          final labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-                          if (value.toInt() >= 0 && value.toInt() < labels.length) {
-                            return Text(
-                              labels[value.toInt()],
-                              style: const TextStyle(fontSize: 8, color: AppColors.textMuted),
+                          final idx = value.toInt();
+                          if (idx >= 0 && idx < revenueData.length) {
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(_monthNameFromMonthIndex(revenueData[idx].month),
+                                  style: const TextStyle(fontSize: 9, color: AppColors.textMuted)),
                             );
                           }
                           return const SizedBox();
                         },
-                        reservedSize: 14,
                       ),
                     ),
                     leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                     topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                     rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   ),
-                  gridData: const FlGridData(show: false),
                   borderData: FlBorderData(show: false),
-                  barGroups: _buildBarGroups(revenueData),
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: List.generate(revenueData.length, (i) => FlSpot(i.toDouble(), revenueData[i].amount.toDouble())),
+                      isCurved: true,
+                      curveSmoothness: 0.35,
+                      color: AppColors.primary,
+                      barWidth: 3,
+                      isStrokeCapRound: true,
+                      dotData: FlDotData(
+                        show: true,
+                        getDotPainter: (spot, percent, barData, index) {
+                          return FlDotCirclePainter(
+                            radius: 4,
+                            color: AppColors.primary,
+                            strokeWidth: 2,
+                            strokeColor: const Color(0xFF1C1C27),
+                          );
+                        },
+                      ),
+                      belowBarData: BarAreaData(
+                        show: true,
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            AppColors.primary.withValues(alpha: 0.4),
+                            AppColors.primary.withValues(alpha: 0.0),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
           const SizedBox(height: 16),
           const Divider(color: AppColors.border, height: 1),
           const SizedBox(height: 12),
-          const Row(
+          Row(
             children: [
-              Icon(Icons.circle, size: 8, color: Color(0xFF10B981)),
-              SizedBox(width: 8),
-              Text(
-                'Revenue from member subscriptions',
-                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-              ),
-              Spacer(),
-              Icon(Icons.arrow_forward_ios, size: 10, color: AppColors.textMuted),
+              Container(width: 8, height: 8, decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle)),
+              const SizedBox(width: 8),
+              const Text('Revenue from member subscriptions', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+              const Spacer(),
+              const Icon(Icons.arrow_forward_ios, size: 10, color: AppColors.textMuted),
             ],
           ),
         ],
@@ -544,31 +670,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  List<BarChartGroupData> _buildBarGroups(List<MonthlyRevenue> revenueData) {
-    final maxY = _getMaxRevenue(revenueData);
-    final minBarY = maxY > 0 ? maxY * 0.02 : 1.0;
-
-    return List.generate(revenueData.length, (index) {
-      final amount = revenueData[index].amount.toDouble();
-      final toY = amount > 0 ? amount : minBarY;
-      final isCurrentMonth = index == revenueData.length - 1;
-
-      return BarChartGroupData(
-        x: index,
-        barRods: [
-          BarChartRodData(
-            toY: toY,
-            color: isCurrentMonth ? const Color(0xFF10B981) : const Color(0xFF6366F1),
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(3),
-              topRight: Radius.circular(3),
-            ),
-            width: 8,
-            fromY: 0,
-          ),
-        ],
-      );
-    });
+  String _monthNameFromMonthIndex(String monthIndex) {
+    final parts = monthIndex.split(' ');
+    if (parts.length < 2) return monthIndex;
+    final monthNum = int.tryParse(parts[0]) ?? 0;
+    final year = parts[1];
+    
+    const monthNames = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    
+    final monthName = monthNum > 0 && monthNum <= 12 ? monthNames[monthNum - 1] : '';
+    return monthNum > 0 ? '$monthName $year' : monthIndex;
   }
 
   double _getMaxRevenue(List<MonthlyRevenue> revenueData) {
@@ -580,7 +694,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return max.toDouble();
   }
 
-  Widget _buildRecentActivity(ThemeData theme, List<MemberModel> recentMembers) {
+  Widget _buildRecentActivity(
+    ThemeData theme,
+    List<MemberModel> recentMembers,
+  ) {
     if (recentMembers.isEmpty) return const SizedBox();
 
     final displayMembers = recentMembers.take(2).toList();
@@ -601,13 +718,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             children: [
               const Text(
                 'Recent Activity',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
               ),
               GestureDetector(
                 onTap: () => context.go('/members'),
                 child: const Text(
                   'View All',
-                  style: TextStyle(fontSize: 12, color: Color(0xFF6366F1), fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF6366F1),
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -615,34 +740,43 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           const SizedBox(height: 12),
           const Divider(color: AppColors.border, height: 1),
           const SizedBox(height: 12),
-          ...displayMembers.map((member) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: member.status == 'Active'
-                        ? const Color(0xFF10B981)
-                        : const Color(0xFFEF4444),
+          ...displayMembers.map(
+            (member) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: member.status == 'Active'
+                          ? const Color(0xFF10B981)
+                          : const Color(0xFFEF4444),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    member.name,
-                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      member.name,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ),
-                ),
-                Text(
-                  _timeAgo(member.createdAt),
-                  style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
-                ),
-              ],
+                  Text(
+                    _timeAgo(member.createdAt),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          )),
+          ),
         ],
       ),
     );

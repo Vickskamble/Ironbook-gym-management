@@ -26,7 +26,7 @@ class _EditPlanScreenState extends ConsumerState<EditPlanScreen> {
   final _durationController = TextEditingController();
   final _featureController = TextEditingController();
   final _features = <String>[];
-  String _selectedColor = AppColors.primary.value.toRadixString(16).padLeft(8, '0');
+  String _selectedColor = AppColors.primary.toARGB32().toRadixString(16).padLeft(8, '0');
   bool _isLoading = false;
   bool _initialized = false;
 
@@ -90,7 +90,7 @@ class _EditPlanScreenState extends ConsumerState<EditPlanScreen> {
         'color': _selectedColor,
       };
 
-      ref.read(planProvider(gymId).notifier).updatePlan(widget.planId, updatedData);
+      ref.read(planProvider(gymId).notifier).updatePlan(widget.planId, gymId, updatedData);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -128,16 +128,15 @@ class _EditPlanScreenState extends ConsumerState<EditPlanScreen> {
           _loadPlanData(plan);
         }
         return Scaffold(
-      appBar: AppBar(
-        title: const Text('Edit Plan'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Form(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildTopBar(),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -238,23 +237,41 @@ class _EditPlanScreenState extends ConsumerState<EditPlanScreen> {
                           side: BorderSide(
                               color: AppColors.primary.withValues(alpha: 0.3)),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(10),
                           ),
-                        ))
-                    .toList(),
-              ),
-              const SizedBox(height: 32),
-              PrimaryButton(
-                text: 'Save Changes',
-                loading: _isLoading,
-                onPressed: _submit,
-              ),
-            ],
+                          ))
+                      .toList(),
+                ),
+                const SizedBox(height: 32),
+                PrimaryButton(
+                  text: 'Save Changes',
+                  loading: _isLoading,
+                  onPressed: _submit,
+                ),
+              ],
+            ),
           ),
         ),
       ),
+    ],
+    ),
+      ),
     );
       },
+    );
+  }
+
+  Widget _buildTopBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+            onPressed: () => context.pop(),
+          ),
+        ],
+      ),
     );
   }
 }

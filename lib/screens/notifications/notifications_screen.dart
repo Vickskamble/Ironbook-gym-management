@@ -13,7 +13,6 @@ class NotificationsScreen extends ConsumerWidget {
     if (gymId == null) {
       return Scaffold(
         backgroundColor: AppColors.background,
-        appBar: AppBar(title: const Text('Notifications')),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -21,67 +20,85 @@ class NotificationsScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Notifications'),
-        actions: [
-          TextButton(
-            onPressed: () {},
-            child: Text('Mark All Read', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
-      body: notifAsync.when(
-        data: (notifs) => notifs.isEmpty
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.notifications_none_rounded, size: 80, color: AppColors.textMuted),
-                    const SizedBox(height: 16),
-                    Text('No notifications', style: TextStyle(color: AppColors.textSecondary, fontSize: 16)),
-                  ],
+      body: SafeArea(
+        child: notifAsync.when(
+          data: (notifs) => notifs.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 80, height: 80,
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceLight,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: const Icon(Icons.notifications_none_rounded, size: 36, color: AppColors.textMuted),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text('No notifications',
+                          style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 6),
+                      Text('You\'re all caught up!',
+                          style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: notifs.length,
+                  itemBuilder: (context, i) {
+                    final n = notifs[i];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      decoration: BoxDecoration(
+                        color: n.isRead ? AppColors.surface : AppColors.surfaceLight,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: n.isRead ? AppColors.border : AppColors.primary.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (!n.isRead)
+                              Container(
+                                width: 8, height: 8,
+                                margin: const EdgeInsets.only(top: 6),
+                                decoration: const BoxDecoration(
+                                  color: AppColors.primary,
+                                  shape: BoxShape.circle,
+                                ),
+                              )
+                            else
+                              const SizedBox(width: 8),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(n.title,
+                                      style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white, fontSize: 14),
+                                      maxLines: 2, overflow: TextOverflow.ellipsis),
+                                  const SizedBox(height: 4),
+                                  Text(n.body,
+                                      style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                                      maxLines: 3, overflow: TextOverflow.ellipsis),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
-              )
-            : ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: notifs.length,
-                itemBuilder: (context, i) {
-                  final n = notifs[i];
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: n.isRead ? AppColors.surface : AppColors.surfaceLight,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: n.isRead ? AppColors.border : AppColors.primary.withValues(alpha: 0.2)),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 8, height: 8,
-                          decoration: BoxDecoration(
-                            color: n.isRead ? Colors.transparent : AppColors.primary,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(n.title, style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 15)),
-                              const SizedBox(height: 4),
-                              Text(n.body, style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: AppColors.danger))),
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: AppColors.danger))),
+        ),
       ),
     );
   }

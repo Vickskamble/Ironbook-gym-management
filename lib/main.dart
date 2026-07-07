@@ -6,37 +6,63 @@ import 'core/constants/app_strings.dart';
 import 'core/constants/app_colors.dart';
 import 'core/router/app_router.dart';
 import 'core/utils/error_handler.dart';
+import 'core/services/notification_service.dart';
 import 'widgets/error_boundary.dart';
+import 'widgets/debug_overlay.dart';
 import 'supabase_config.dart';
 import 'providers/locale_provider.dart';
 
 void main() async {
+  ErrorHandler.logStep('main', 'App starting');
   WidgetsFlutterBinding.ensureInitialized();
+  ErrorHandler.logStep('main', 'WidgetsFlutterBinding initialized');
 
-  // Initialize error handling first
   await ErrorHandler.initialize();
+  ErrorHandler.logStep('main', 'ErrorHandler initialized');
 
-  // Initialize Supabase with proper error handling
-  final supabaseResult = await SupabaseConfig.initializeWithResult();
-  
-  if (supabaseResult.isError) {
-    ErrorHandler.logError('Supabase initialization failed', supabaseResult.error, supabaseResult.stackTrace);
-    runApp(ProviderScope(
-      child: MaterialApp(
-        title: AppStrings.appName,
-        debugShowCheckedModeBanner: false,
-        home: ErrorScreen(
-          title: 'Initialization Failed',
-          message: 'Could not connect to backend. Please check your internet connection and Supabase configuration.',
-          details: supabaseResult.error?.toString(),
-          onRetry: () => main(),
-        ),
-      ),
-    ));
-    return;
+  ErrorHandler.logStep('main', 'Initializing Supabase...');
+  final initResult = await SupabaseConfig.initializeWithResult();
+
+  if (initResult.isSuccess) {
+    ErrorHandler.logStep('main', 'Supabase initialized, setting up notifications');
+    try {
+      await NotificationService.initialize();
+      ErrorHandler.logStep('main', 'NotificationService initialized');
+    } catch (e, stack) {
+      ErrorHandler.logError('main.notifications', e, stack);
+    }
+  } else {
+    ErrorHandler.logError('main', initResult.error, initResult.stackTrace);
   }
 
-  runApp(const ProviderScope(child: IronBookApp()));
+  ErrorHandler.logStep('main', 'Running app');
+  runApp(ProviderScope(
+    child: initResult.isSuccess
+        ? const IronBookApp()
+        : InitErrorWidget(result: initResult),
+  ));
+}
+
+class InitErrorWidget extends StatelessWidget {
+  final Result<void> result;
+
+  const InitErrorWidget({super.key, required this.result});
+
+  @override
+  Widget build(BuildContext context) {
+    final error = result.error;
+    final message = error is Error
+        ? error.toString()
+        : error?.toString() ?? 'Unknown initialization error';
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: ErrorScreen(
+        title: 'Initialization Failed',
+        message: 'Could not initialize the app.',
+        details: message,
+      ),
+    );
+  }
 }
 
 class IronBookApp extends ConsumerWidget {
@@ -44,16 +70,14 @@ class IronBookApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ErrorHandler.logStep('IronBookApp', 'Building app');
     final router = ref.watch(routerProvider);
-    final themeMode = ref.watch(themeModeProvider);
     final locale = ref.watch(localeProvider);
-    
+
     return MaterialApp.router(
       title: AppStrings.appName,
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: themeMode,
+      theme: AppTheme.darkTheme,
       locale: locale,
       supportedLocales: const [Locale('en'), Locale('hi'), Locale('mr')],
       localizationsDelegates: const [
@@ -62,8 +86,13 @@ class IronBookApp extends ConsumerWidget {
       ],
       routerConfig: router,
       builder: (context, child) {
-        return ErrorBoundary(
-          child: child ?? const SizedBox.shrink(),
+        return DebugOverlay(
+          child: ErrorBoundary(
+            onError: (error, stack) {
+              ErrorHandler.logError('App.onError', error, stack);
+            },
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
     );
@@ -146,7 +175,10 @@ class ErrorScreen extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 16,
+                    ),
                   ),
                 ),
             ],

@@ -28,6 +28,7 @@ class _AddPaymentScreenState extends ConsumerState<AddPaymentScreen> {
   PlanModel? _selectedPlan;
   String _paymentMethod = 'Cash';
   bool _isLoading = false;
+  DateTime _membershipStartDate = DateTime.now();
 
   List<MemberModel> _members = [];
   List<PlanModel> _plans = [];
@@ -90,6 +91,18 @@ class _AddPaymentScreenState extends ConsumerState<AddPaymentScreen> {
     });
   }
 
+  Future<void> _pickMembershipStartDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _membershipStartDate,
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked != null) {
+      setState(() => _membershipStartDate = picked);
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedMember == null) {
@@ -105,12 +118,22 @@ class _AddPaymentScreenState extends ConsumerState<AddPaymentScreen> {
       return;
     }
 
+    final enteredAmount = double.tryParse(_amountController.text.trim()) ?? 0;
+    if (enteredAmount > _selectedPlan!.price) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Amount cannot exceed plan price of \u20B9${_selectedPlan!.price.toStringAsFixed(0)}')),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
       final gymId = ref.read(authProvider).gymId!;
       final now = DateTime.now();
+      final startDate = DateTime(_membershipStartDate.year, _membershipStartDate.month, _membershipStartDate.day);
 
+      final nextDue = startDate.add(Duration(days: _selectedPlan!.durationDays));
       final data = {
         'gym_id': gymId,
         'member_id': _selectedMember!.id,
@@ -121,6 +144,8 @@ class _AddPaymentScreenState extends ConsumerState<AddPaymentScreen> {
         'final_amount': double.parse(_amountController.text.trim()),
         'discount': _selectedPlan!.price - double.parse(_amountController.text.trim()),
         'paid_at': now.toIso8601String(),
+        'next_due_date': nextDue.toIso8601String(),
+        'membership_start': startDate.toIso8601String().split('T')[0],
         'method': _paymentMethod,
         'note': _notesController.text.trim().isEmpty
             ? null
@@ -153,12 +178,17 @@ class _AddPaymentScreenState extends ConsumerState<AddPaymentScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Record Payment')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Column(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildTopBar(),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
@@ -173,7 +203,7 @@ class _AddPaymentScreenState extends ConsumerState<AddPaymentScreen> {
               _loadingMembers
                   ? const CircularProgressIndicator()
                     : DropdownButtonFormField<MemberModel>(
-                      initialValue: null,
+                      initialValue: _selectedMember,
                       decoration: InputDecoration(
                         labelText: 'Select Member',
                         border: OutlineInputBorder(
@@ -194,7 +224,7 @@ class _AddPaymentScreenState extends ConsumerState<AddPaymentScreen> {
               _loadingPlans
                   ? const CircularProgressIndicator()
                   : DropdownButtonFormField<PlanModel>(
-                      initialValue: null,
+                      initialValue: _selectedPlan,
                       decoration: InputDecoration(
                         labelText: 'Select Plan',
                         border: OutlineInputBorder(
@@ -227,12 +257,35 @@ class _AddPaymentScreenState extends ConsumerState<AddPaymentScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Expires: ${DateTime.now().add(Duration(days: _selectedPlan!.durationDays)).toString().substring(0, 10)}',
+                          'Expires: ${_membershipStartDate.add(Duration(days: _selectedPlan!.durationDays)).toString().substring(0, 10)}',
                           style: const TextStyle(
                               color: AppColors.primary, fontSize: 13),
                         ),
                       ),
                     ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                InkWell(
+                  onTap: _pickMembershipStartDate,
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.calendar_today, size: 18),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Membership Start: ${_membershipStartDate.toString().substring(0, 10)}',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                        const Spacer(),
+                        const Icon(Icons.edit, size: 16),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -280,8 +333,26 @@ class _AddPaymentScreenState extends ConsumerState<AddPaymentScreen> {
                 onPressed: _submit,
               ),
             ],
+            ),
           ),
         ),
+      ),
+    ],
+  ),
+  ),
+);
+  }
+
+  Widget _buildTopBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+            onPressed: () => context.pop(),
+          ),
+        ],
       ),
     );
   }

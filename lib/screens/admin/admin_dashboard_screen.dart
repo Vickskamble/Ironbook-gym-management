@@ -15,20 +15,7 @@ class AdminDashboardScreen extends ConsumerWidget {
     final authState = ref.watch(authProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Admin Dashboard'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await ref.read(authProvider.notifier).signOut();
-              if (context.mounted) {
-                context.go('/login');
-              }
-            },
-          ),
-        ],
-      ),
+      backgroundColor: AppColors.background,
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
@@ -42,8 +29,11 @@ class AdminDashboardScreen extends ConsumerWidget {
                   const CircleAvatar(
                     radius: 28,
                     backgroundColor: Colors.white24,
-                    child: Icon(Icons.admin_panel_settings,
-                        color: Colors.white, size: 32),
+                    child: Icon(
+                      Icons.admin_panel_settings,
+                      color: Colors.white,
+                      size: 32,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -91,112 +81,147 @@ class AdminDashboardScreen extends ConsumerWidget {
           ],
         ),
       ),
-      body: statsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('Error: $error')),
-        data: (stats) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Welcome back, ${authState.profile?.name ?? 'Admin'}',
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Here\'s what\'s happening across your platform.',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                GridView.count(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 16,
-                  crossAxisSpacing: 16,
-                  childAspectRatio: 1.2,
-                  children: [
-                    StatCard(
-                      title: 'Total Gyms',
-                      value: '${stats['totalGyms']}',
-                      subtitle: 'Registered',
-                      icon: Icons.business,
-                      iconColor: AppColors.primary,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildTopBar(context, ref),
+            Expanded(
+              child: statsAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, _) => Center(child: Text('Error: $error')),
+                data: (stats) {
+                  return SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Welcome back, ${authState.profile?.name ?? 'Admin'}',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Here\'s what\'s happening across your platform.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(context).colorScheme.outline,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        GridView.count(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 16,
+                          crossAxisSpacing: 16,
+                          childAspectRatio: 1.2,
+                          children: [
+                            StatCard(
+                              title: 'Total Gyms',
+                              value: '${stats['totalGyms']}',
+                              subtitle: 'Registered',
+                              icon: Icons.business,
+                              iconColor: AppColors.primary,
+                            ),
+                            StatCard(
+                              title: 'Total Members',
+                              value: '${stats['totalMembers']}',
+                              subtitle: 'All time',
+                              icon: Icons.people,
+                              iconColor: AppColors.primary,
+                            ),
+                            StatCard(
+                              title: 'Active Members',
+                              value: '${stats['activeMembers']}',
+                              subtitle: 'Current',
+                              icon: Icons.person,
+                              iconColor: AppColors.success,
+                            ),
+                            StatCard(
+                              title: 'Staff',
+                              value: '${stats['totalStaff']}',
+                              subtitle: 'Non-admin users',
+                              icon: Icons.badge,
+                              iconColor: AppColors.primary,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 32),
+                        Text(
+                          'Quick Actions',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Theme.of(context).colorScheme.outline,
+                              width: 1,
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              ListTile(
+                                leading: const Icon(
+                                  Icons.business,
+                                  color: AppColors.primary,
+                                ),
+                                title: const Text('Manage Gyms'),
+                                trailing: const Icon(Icons.chevron_right),
+                                onTap: () => context.push('/admin/gyms'),
+                              ),
+                              const Divider(height: 1),
+                              ListTile(
+                                leading: const Icon(
+                                  Icons.people,
+                                  color: AppColors.primary,
+                                ),
+                                title: const Text('Manage Staff'),
+                                trailing: const Icon(Icons.chevron_right),
+                                onTap: () => context.push('/admin/staff'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    StatCard(
-                      title: 'Total Members',
-                      value: '${stats['totalMembers']}',
-                      subtitle: 'All time',
-                      icon: Icons.people,
-                      iconColor: AppColors.primary,
-                    ),
-                    StatCard(
-                      title: 'Active Members',
-                      value: '${stats['activeMembers']}',
-                      subtitle: 'Current',
-                      icon: Icons.person,
-                      iconColor: AppColors.success,
-                    ),
-                    StatCard(
-                      title: 'Staff',
-                      value: '${stats['totalStaff']}',
-                      subtitle: 'Non-admin users',
-                      icon: Icons.badge,
-                      iconColor: AppColors.primary,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 32),
-                Text(
-                  'Quick Actions',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Theme.of(context).colorScheme.outline,
-                      width: 1,
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      ListTile(
-                        leading: const Icon(Icons.business,
-                            color: AppColors.primary),
-                        title: const Text('Manage Gyms'),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => context.push('/admin/gyms'),
-                      ),
-                      const Divider(height: 1),
-                      ListTile(
-                        leading:
-                            const Icon(Icons.people, color: AppColors.primary),
-                        title: const Text('Manage Staff'),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => context.push('/admin/staff'),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                  );
+                },
+              ),
             ),
-          );
-        },
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopBar(BuildContext context, WidgetRef ref) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.menu_rounded, color: Colors.white),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+          const Spacer(),
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+            onPressed: () async {
+              await ref.read(authProvider.notifier).signOut();
+              if (context.mounted) context.go('/login');
+            },
+          ),
+        ],
       ),
     );
   }

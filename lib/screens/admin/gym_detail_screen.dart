@@ -1,26 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../providers/admin_provider.dart';
-import '../../models/gym_model.dart';
-import '../../models/member_model.dart';
 import '../../core/constants/app_colors.dart';
-import '../../repositories/member_repository.dart';
-import '../../widgets/glass_container.dart';
+import '../../core/utils/responsive.dart';
+import '../../models/member_model.dart';
 import '../../widgets/primary_button.dart';
 import '../../widgets/stat_card.dart' hide PrimaryButton;
 import '../../widgets/skeleton_loader.dart';
+import '../../repositories/member_repository.dart';
+import '../../models/gym_model.dart';
+import '../../widgets/glass_container.dart';
 
-final _gymDetailProvider =
-    FutureProvider.family<Map<String, dynamic>, String>((ref, gymId) {
+final _gymDetailProvider = FutureProvider.family<Map<String, dynamic>, String>((
+  ref,
+  gymId,
+) {
   return ref.read(adminRepositoryProvider).getGymDetail(gymId);
 });
 
-final _recentMembersProvider =
-    FutureProvider.family<List<MemberModel>, String>((ref, gymId) {
-  final repo = MemberRepository(Supabase.instance.client);
-  return repo.getMembers(gymId, limit: 5);
-});
+final _recentMembersProvider = FutureProvider.family<List<MemberModel>, String>(
+  (ref, gymId) {
+    final repo = MemberRepository(Supabase.instance.client);
+    return repo.getMembers(gymId, limit: 5);
+  },
+);
 
 class GymDetailScreen extends ConsumerStatefulWidget {
   final String gymId;
@@ -37,50 +42,74 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
     final membersAsync = ref.watch(_recentMembersProvider(widget.gymId));
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Gym Details'),
-        actions: [
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildTopBar(context, ref),
+            Expanded(
+              child: detailAsync.when(
+                loading: () => _buildLoadingSkeleton(),
+                error: (err, _) => _buildErrorState(err.toString()),
+                data: (detail) {
+                  final gymJson = detail['gym'] as Map<String, dynamic>;
+                  final gym = GymModel.fromJson(gymJson);
+                  final totalMembers = detail['totalMembers'] as int;
+                  final activeMembers = detail['activeMembers'] as int;
+                  final totalStaff = detail['totalStaff'] as int;
+                  final totalRevenue = detail['totalRevenue'] as num;
+
+                  return SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildGymInfoHeader(gym),
+                        const SizedBox(height: 24),
+                        _buildStatsRow(
+                          totalMembers,
+                          activeMembers,
+                          totalStaff,
+                          totalRevenue,
+                        ),
+                        const SizedBox(height: 24),
+                        _buildSubscriptionCard(gym),
+                        const SizedBox(height: 24),
+                        _buildOwnerInfo(gym),
+                        const SizedBox(height: 24),
+                        _buildQuickActions(gym),
+                        const SizedBox(height: 24),
+                        _buildMembersTable(membersAsync),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopBar(BuildContext context, WidgetRef ref) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
+      child: Row(
+        children: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+            onPressed: () => context.pop(),
+          ),
+          const Spacer(),
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: () {
               ref.invalidate(_gymDetailProvider(widget.gymId));
               ref.invalidate(_recentMembersProvider(widget.gymId));
             },
           ),
         ],
-      ),
-      body: detailAsync.when(
-        loading: () => _buildLoadingSkeleton(),
-        error: (err, _) => _buildErrorState(err.toString()),
-        data: (detail) {
-          final gymJson = detail['gym'] as Map<String, dynamic>;
-          final gym = GymModel.fromJson(gymJson);
-          final totalMembers = detail['totalMembers'] as int;
-          final activeMembers = detail['activeMembers'] as int;
-          final totalStaff = detail['totalStaff'] as int;
-          final totalRevenue = detail['totalRevenue'] as num;
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildGymInfoHeader(gym),
-                const SizedBox(height: 24),
-                _buildStatsRow(
-                    totalMembers, activeMembers, totalStaff, totalRevenue),
-                const SizedBox(height: 24),
-                _buildSubscriptionCard(gym),
-                const SizedBox(height: 24),
-                _buildOwnerInfo(gym),
-                const SizedBox(height: 24),
-                _buildQuickActions(gym),
-                const SizedBox(height: 24),
-                _buildMembersTable(membersAsync),
-              ],
-            ),
-          );
-        },
       ),
     );
   }
@@ -126,8 +155,11 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline,
-                size: 64, color: AppColors.dangerLight),
+            const Icon(
+              Icons.error_outline,
+              size: 64,
+              color: AppColors.dangerLight,
+            ),
             const SizedBox(height: 16),
             Text(
               message,
@@ -204,8 +236,11 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    const Icon(Icons.phone_rounded,
-                        size: 14, color: AppColors.textMuted),
+                    const Icon(
+                      Icons.phone_rounded,
+                      size: 14,
+                      color: AppColors.textMuted,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       gym.phone,
@@ -216,8 +251,11 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
                     ),
                     if (gym.website != null && gym.website!.isNotEmpty) ...[
                       const SizedBox(width: 16),
-                      const Icon(Icons.language_rounded,
-                          size: 14, color: AppColors.textMuted),
+                      const Icon(
+                        Icons.language_rounded,
+                        size: 14,
+                        color: AppColors.textMuted,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         gym.website!,
@@ -251,7 +289,11 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
   }
 
   Widget _buildStatsRow(
-      int totalMembers, int activeMembers, int totalStaff, num totalRevenue) {
+    int totalMembers,
+    int activeMembers,
+    int totalStaff,
+    num totalRevenue,
+  ) {
     return Column(
       children: [
         Row(
@@ -302,9 +344,10 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
   }
 
   Widget _buildSubscriptionCard(GymModel gym) {
-    final planLabel = gym.subscription[0].toUpperCase() +
-        gym.subscription.substring(1);
-    final isExpired = gym.subscriptionExpiresAt != null &&
+    final planLabel =
+        gym.subscription[0].toUpperCase() + gym.subscription.substring(1);
+    final isExpired =
+        gym.subscriptionExpiresAt != null &&
         DateTime.now().isAfter(gym.subscriptionExpiresAt!);
     final isActive = gym.isActive && !isExpired;
     final daysRemaining = gym.subscriptionExpiresAt != null
@@ -329,8 +372,10 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
               ),
               const Spacer(),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: (isActive ? AppColors.active : AppColors.expired)
                       .withValues(alpha: 0.15),
@@ -341,8 +386,7 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color:
-                        isActive ? AppColors.active : AppColors.expired,
+                    color: isActive ? AppColors.active : AppColors.expired,
                   ),
                 ),
               ),
@@ -352,8 +396,10 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
           Row(
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
@@ -414,16 +460,14 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          _buildOwnerRow(Icons.person_rounded, 'Name', 'Owner #${gym.ownerId.substring(0, 8)}'),
-          const Divider(
-            color: AppColors.border,
-            height: 1,
+          _buildOwnerRow(
+            Icons.person_rounded,
+            'Name',
+            'Owner #${gym.ownerId.substring(0, 8)}',
           ),
+          const Divider(color: AppColors.border, height: 1),
           _buildOwnerRow(Icons.phone_rounded, 'Phone', '---'),
-          const Divider(
-            color: AppColors.border,
-            height: 1,
-          ),
+          const Divider(color: AppColors.border, height: 1),
           _buildOwnerRow(Icons.email_rounded, 'Email', '---'),
           const SizedBox(height: 8),
           Text(
@@ -450,8 +494,7 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
               color: AppColors.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child:
-                Icon(icon, color: AppColors.primary, size: 16),
+            child: Icon(icon, color: AppColors.primary, size: 16),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -526,7 +569,8 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
 
   void _showEditSubscriptionDialog(GymModel gym) {
     String selectedPlan = gym.subscription;
-    DateTime selectedDate = gym.subscriptionExpiresAt ??
+    DateTime selectedDate =
+        gym.subscriptionExpiresAt ??
         DateTime.now().add(const Duration(days: 365));
     bool isSaving = false;
 
@@ -544,7 +588,7 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
             style: TextStyle(color: AppColors.textPrimary),
           ),
           content: SizedBox(
-            width: double.maxFinite,
+            width: Responsive.dialogWidth(context),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -566,28 +610,26 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
                     fillColor: AppColors.surface2,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          const BorderSide(color: AppColors.border),
+                      borderSide: const BorderSide(color: AppColors.border),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          const BorderSide(color: AppColors.border),
+                      borderSide: const BorderSide(color: AppColors.border),
                     ),
                     contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                   ),
                   style: const TextStyle(color: AppColors.textPrimary),
                   items: const [
+                    DropdownMenuItem(value: 'free', child: Text('Free')),
+                    DropdownMenuItem(value: 'starter', child: Text('Starter')),
+                    DropdownMenuItem(value: 'pro', child: Text('Pro')),
                     DropdownMenuItem(
-                        value: 'free', child: Text('Free')),
-                    DropdownMenuItem(
-                        value: 'starter', child: Text('Starter')),
-                    DropdownMenuItem(
-                        value: 'pro', child: Text('Pro')),
-                    DropdownMenuItem(
-                        value: 'enterprise',
-                        child: Text('Enterprise')),
+                      value: 'enterprise',
+                      child: Text('Enterprise'),
+                    ),
                   ],
                   onChanged: (value) {
                     if (value != null) {
@@ -611,8 +653,7 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
                       context: context,
                       initialDate: selectedDate,
                       firstDate: DateTime.now(),
-                      lastDate:
-                          DateTime.now().add(const Duration(days: 3650)),
+                      lastDate: DateTime.now().add(const Duration(days: 3650)),
                       builder: (context, child) => Theme(
                         data: Theme.of(context).copyWith(
                           colorScheme: const ColorScheme.dark(
@@ -632,15 +673,16 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
                   child: Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 14),
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.surface2,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: AppColors.border),
                     ),
                     child: Row(
-                      mainAxisAlignment:
-                          MainAxisAlignment.spaceBetween,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
                           _formatDate(selectedDate),
@@ -649,8 +691,11 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
                             fontSize: 15,
                           ),
                         ),
-                        const Icon(Icons.calendar_month_rounded,
-                            color: AppColors.textSecondary, size: 20),
+                        const Icon(
+                          Icons.calendar_month_rounded,
+                          color: AppColors.textSecondary,
+                          size: 20,
+                        ),
                       ],
                     ),
                   ),
@@ -675,26 +720,29 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
                         await ref
                             .read(adminRepositoryProvider)
                             .updateSubscription(
-                                widget.gymId, selectedPlan, selectedDate);
+                              widget.gymId,
+                              selectedPlan,
+                              selectedDate,
+                            );
                         if (ctx.mounted) {
                           Navigator.pop(ctx);
                         }
-                        ref.invalidate(
-                            _gymDetailProvider(widget.gymId));
-                        if (mounted) {
+                        ref.invalidate(_gymDetailProvider(widget.gymId));
+                        if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text(
-                                  'Subscription updated successfully'),
+                                'Subscription updated successfully',
+                              ),
                             ),
                           );
                         }
                       } catch (e) {
                         setDialogState(() => isSaving = false);
                         if (ctx.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('$e')),
-                          );
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(SnackBar(content: Text('$e')));
                         }
                       }
                     },
@@ -755,12 +803,18 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
                   style: TextStyle(color: AppColors.textSecondary),
                 );
               }
-              return Column(
-                children: [
-                  _buildMemberTableHeader(),
-                  const Divider(color: AppColors.border, height: 1),
-                  ...members.map(_buildMemberRow),
-                ],
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: Responsive.isMobile(context) ? 500 : null,
+                  child: Column(
+                    children: [
+                      _buildMemberTableHeader(),
+                      const Divider(color: AppColors.border, height: 1),
+                      ...members.map(_buildMemberRow),
+                    ],
+                  ),
+                ),
               );
             },
           ),
@@ -783,6 +837,8 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
                 fontWeight: FontWeight.w700,
                 color: AppColors.textMuted,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           Expanded(
@@ -794,6 +850,8 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
                 fontWeight: FontWeight.w700,
                 color: AppColors.textMuted,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           Expanded(
@@ -805,6 +863,8 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
                 fontWeight: FontWeight.w700,
                 color: AppColors.textMuted,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           Expanded(
@@ -816,6 +876,8 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
                 fontWeight: FontWeight.w700,
                 color: AppColors.textMuted,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -827,18 +889,16 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
     final statusColor = member.status == 'Active'
         ? AppColors.active
         : member.status == 'Expired'
-            ? AppColors.expired
-            : member.status == 'Paused'
-                ? AppColors.paused
-                : AppColors.deleted;
+        ? AppColors.expired
+        : member.status == 'Paused'
+        ? AppColors.paused
+        : AppColors.deleted;
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10),
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(
-            color: AppColors.border.withValues(alpha: 0.3),
-          ),
+          bottom: BorderSide(color: AppColors.border.withValues(alpha: 0.3)),
         ),
       ),
       child: Row(
@@ -852,6 +912,8 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
                 fontWeight: FontWeight.w500,
                 color: AppColors.textPrimary,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           Expanded(
@@ -862,6 +924,8 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
                 fontSize: 13,
                 color: AppColors.textSecondary,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           Expanded(
@@ -872,13 +936,14 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
                 fontSize: 13,
                 color: AppColors.textSecondary,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           Expanded(
             flex: 1,
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
               decoration: BoxDecoration(
                 color: statusColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(6),
@@ -901,8 +966,18 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
 
   String _formatDate(DateTime date) {
     final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }

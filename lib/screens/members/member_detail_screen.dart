@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../../providers/member_provider.dart';
 import '../../models/member_model.dart';
 import '../../providers/auth_provider.dart';
@@ -250,12 +251,52 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
+                _buildQrCode(member),
+                const SizedBox(height: 24),
                 _buildInfoCard(member),
               ],
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildQrCode(MemberModel member) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        children: [
+          QrImageView(
+            data: member.id,
+            version: QrVersions.auto,
+            size: 160,
+            backgroundColor: Colors.white,
+            eyeStyle: const QrEyeStyle(
+              eyeShape: QrEyeShape.square,
+              color: Colors.black,
+            ),
+            dataModuleStyle: const QrDataModuleStyle(
+              dataModuleShape: QrDataModuleShape.square,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Scan to mark attendance',
+            style: TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 12,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -3,6 +3,7 @@ class GymModel {
   final String name;
   final String address;
   final String phone;
+  final String? gymType;
   final String ownerId;
   final String subscription;
   final DateTime? subscriptionExpiresAt;
@@ -19,6 +20,7 @@ class GymModel {
     required this.name,
     required this.address,
     required this.phone,
+    this.gymType,
     required this.ownerId,
     this.subscription = 'free',
     this.subscriptionExpiresAt,
@@ -37,6 +39,7 @@ class GymModel {
       name: json['name'] as String,
       address: json['address'] as String,
       phone: (json['phone'] as String?) ?? '',
+      gymType: json['type'] as String?,
       ownerId: json['owner_id'] as String,
       subscription: (json['subscription'] as String?) ?? 'free',
       subscriptionExpiresAt: json['subscription_expires_at'] != null
@@ -58,6 +61,7 @@ class GymModel {
       'name': name,
       'address': address,
       'phone': phone,
+      'type': gymType,
       'owner_id': ownerId,
       'subscription': subscription,
       'subscription_expires_at': subscriptionExpiresAt?.toIso8601String(),
@@ -76,6 +80,7 @@ class GymModel {
     String? name,
     String? address,
     String? phone,
+    String? gymType,
     String? ownerId,
     String? subscription,
     DateTime? subscriptionExpiresAt,
@@ -92,6 +97,7 @@ class GymModel {
       name: name ?? this.name,
       address: address ?? this.address,
       phone: phone ?? this.phone,
+      gymType: gymType ?? this.gymType,
       ownerId: ownerId ?? this.ownerId,
       subscription: subscription ?? this.subscription,
       subscriptionExpiresAt: subscriptionExpiresAt ?? this.subscriptionExpiresAt,

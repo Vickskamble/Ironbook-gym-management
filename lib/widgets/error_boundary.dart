@@ -27,6 +27,24 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
   void initState() {
     super.initState();
     ErrorHandler.logInfo('ErrorBoundary', 'Initialized');
+
+    FlutterError.onError = _onFlutterError;
+  }
+
+  void _onFlutterError(FlutterErrorDetails details) {
+    ErrorHandler.logError('ErrorBoundary.caught', details.exception, details.stack);
+    widget.onError?.call(details.exception, details.stack);
+    if (mounted) {
+      setState(() {
+        _error = details.exception;
+        _stackTrace = details.stack;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   @override
@@ -58,7 +76,6 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
       _resetError();
     }
   }
-
 }
 
 class _DefaultErrorWidget extends StatelessWidget {
@@ -161,6 +178,7 @@ class AsyncErrorWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (snapshot.hasError) {
+      ErrorHandler.logError('AsyncErrorWidget', snapshot.error, snapshot.stackTrace);
       return errorBuilder?.call(context, snapshot.error!, snapshot.stackTrace) ??
           _DefaultErrorWidget(
             error: snapshot.error!,

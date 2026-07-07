@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/attendance_model.dart';
+import '../core/utils/error_handler.dart';
 
 class AttendanceRepository {
   final SupabaseClient _client;
@@ -7,6 +8,7 @@ class AttendanceRepository {
   AttendanceRepository(this._client);
 
   Future<AttendanceModel> checkIn(String gymId, String memberId) async {
+    ErrorHandler.logStep('AttendanceRepository.checkIn', 'called');
     try {
       final today = DateTime.now();
       final todayStart = DateTime(today.year, today.month, today.day);
@@ -25,11 +27,28 @@ class AttendanceRepository {
         throw Exception('Already checked in today');
       }
 
+      final member = await _client
+          .from('members')
+          .select('name, status')
+          .eq('id', memberId)
+          .maybeSingle();
+
+      if (member == null) {
+        throw Exception('Member not found');
+      }
+
+      if (member['status'] == 'Deleted') {
+        throw Exception('Cannot check in a deleted member');
+      }
+
+      final memberName = member['name'] as String;
+
       final response = await _client
           .from('attendance')
           .insert({
             'gym_id': gymId,
             'member_id': memberId,
+            'member_name': memberName,
             'check_in': today.toIso8601String(),
             'marked_by': _client.auth.currentUser?.id ?? '',
           })
@@ -37,7 +56,8 @@ class AttendanceRepository {
           .single();
 
       return AttendanceModel.fromJson(response);
-    } catch (e) {
+    } catch (e, stack) {
+      ErrorHandler.logError('AttendanceRepository.checkIn', e, stack);
       throw Exception('Check-in failed: ${e.toString()}');
     }
   }
@@ -46,18 +66,30 @@ class AttendanceRepository {
     String gymId,
     String attendanceId,
   ) async {
+    ErrorHandler.logStep('AttendanceRepository.checkOut', 'called');
     try {
       final now = DateTime.now();
 
       final record = await _client
           .from('attendance')
-          .select()
+          .select('check_in, check_out')
           .eq('gym_id', gymId)
           .eq('id', attendanceId)
-          .single();
+          .maybeSingle();
+
+      if (record == null) {
+        throw Exception('Attendance record not found');
+      }
+
+      if (record['check_out'] != null) {
+        throw Exception('Already checked out');
+      }
 
       final checkIn = DateTime.parse(record['check_in'] as String);
       final durationMinutes = now.difference(checkIn).inMinutes;
+      if (durationMinutes < 0) {
+        throw Exception('Invalid check-out time');
+      }
 
       final response = await _client
           .from('attendance')
@@ -71,12 +103,14 @@ class AttendanceRepository {
           .single();
 
       return AttendanceModel.fromJson(response);
-    } catch (e) {
+    } catch (e, stack) {
+      ErrorHandler.logError('AttendanceRepository.checkOut', e, stack);
       throw Exception('Check-out failed: ${e.toString()}');
     }
   }
 
   Future<List<AttendanceModel>> getTodayAttendance(String gymId) async {
+    ErrorHandler.logStep('AttendanceRepository.getTodayAttendance', 'called');
     try {
       final today = DateTime.now();
       final todayStart = DateTime(today.year, today.month, today.day);
@@ -99,7 +133,8 @@ class AttendanceRepository {
           memberPhone: member?['phone'] as String?,
         );
       }).toList();
-    } catch (e) {
+    } catch (e, stack) {
+      ErrorHandler.logError('AttendanceRepository.getTodayAttendance', e, stack);
       throw Exception('Failed to load today attendance: ${e.toString()}');
     }
   }
@@ -110,6 +145,7 @@ class AttendanceRepository {
     DateTime? from,
     DateTime? to,
   }) async {
+    ErrorHandler.logStep('AttendanceRepository.getMemberAttendance', 'called');
     try {
       dynamic query = _client
           .from('attendance')
@@ -138,7 +174,8 @@ class AttendanceRepository {
           memberPhone: member?['phone'] as String?,
         );
       }).toList();
-    } catch (e) {
+    } catch (e, stack) {
+      ErrorHandler.logError('AttendanceRepository.getMemberAttendance', e, stack);
       throw Exception('Failed to load member attendance: ${e.toString()}');
     }
   }

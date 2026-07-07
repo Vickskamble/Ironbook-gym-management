@@ -22,7 +22,7 @@ class _LanguageSelectionScreenState extends ConsumerState<LanguageSelectionScree
 
   Future<void> _confirm() async {
     if (_selected == null) return;
-    final prefs = await SharedPreferences.getInstance();
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('language', _selected!);
     if (!mounted) return;
     context.go('/onboarding');

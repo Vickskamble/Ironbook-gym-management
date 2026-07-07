@@ -1,29 +1,36 @@
 import 'dart:ui';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../repositories/dashboard_repository.dart';
 import '../models/member_model.dart';
+import 'package:ironbook/core/utils/error_handler.dart';
 
 final dashboardRepositoryProvider = Provider<DashboardRepository>((ref) {
-  return DashboardRepository();
+  return DashboardRepository(Supabase.instance.client);
 });
 
 final dashboardStatsProvider = FutureProvider.family<DashboardStats, String>((ref, gymId) {
+  ErrorHandler.logStep('dashboardStatsProvider', 'build', {'gymId': gymId});
   return ref.read(dashboardRepositoryProvider).getDashboardStats(gymId);
 });
 
 final revenueDataProvider = FutureProvider.family<List<MonthlyRevenue>, String>((ref, gymId) {
+  ErrorHandler.logStep('revenueDataProvider', 'build', {'gymId': gymId});
   return ref.read(dashboardRepositoryProvider).getLastSixMonthsRevenue(gymId);
 });
 
 final recentMembersProvider = FutureProvider.family<List<MemberModel>, String>((ref, gymId) {
+  ErrorHandler.logStep('recentMembersProvider', 'build', {'gymId': gymId});
   return ref.read(dashboardRepositoryProvider).getRecentMembers(gymId);
 });
 
 final expiringMembersProvider = FutureProvider.family<List<MemberModel>, String>((ref, gymId) {
+  ErrorHandler.logStep('expiringMembersProvider', 'build', {'gymId': gymId});
   return ref.read(dashboardRepositoryProvider).getExpiringMembers(gymId);
 });
 
 final formattedRevenueProvider = Provider.family<String, String>((ref, gymId) {
+  ErrorHandler.logStep('formattedRevenueProvider', 'build', {'gymId': gymId});
   final statsAsync = ref.watch(dashboardStatsProvider(gymId));
   return statsAsync.when(
     data: (stats) => '₹${stats.thisMonthRevenue.toStringAsFixed(0)}',
@@ -33,6 +40,7 @@ final formattedRevenueProvider = Provider.family<String, String>((ref, gymId) {
 });
 
 final revenueTrendProvider = Provider.family<String, String>((ref, gymId) {
+  ErrorHandler.logStep('revenueTrendProvider', 'build', {'gymId': gymId});
   final revenueAsync = ref.watch(revenueDataProvider(gymId));
   return revenueAsync.when(
     data: (revenueData) {
