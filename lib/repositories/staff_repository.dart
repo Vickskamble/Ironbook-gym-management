@@ -25,10 +25,6 @@ class StaffRepository {
         query = query.eq('role', role);
       }
 
-      if (status.isNotEmpty) {
-        query = query.eq('is_active', status == 'Active');
-      }
-
       final response = await query;
       return (response as List)
           .map((json) => ProfileModel.fromJson(json))
@@ -86,12 +82,26 @@ class StaffRepository {
         filtered['avatar_url'] = url;
       }
 
+      final currentUser = _client.auth.currentUser;
+      if (currentUser != null && currentUser.email == email) {
+        throw Exception('Cannot use your own email for a staff member');
+      }
+
       final prev = _client.auth.currentSession;
-      final authRes = await _client.auth.signUp(
-        email: email,
-        password: password,
-        data: {'name': filtered['name'], 'role': filtered['role']},
-      );
+      AuthResponse authRes;
+      try {
+        authRes = await _client.auth.signUp(
+          email: email,
+          password: password,
+          data: {'name': filtered['name'], 'role': filtered['role']},
+        );
+      } catch (e) {
+        final msg = e.toString().toLowerCase();
+        if (msg.contains('already registered') || msg.contains('already exists')) {
+          throw Exception('Email "$email" is already registered. Use a different email.');
+        }
+        rethrow;
+      }
       if (authRes.user == null) throw Exception('Failed to create auth user');
       if (prev != null && authRes.session != null) {
         try {
@@ -99,8 +109,16 @@ class StaffRepository {
             await _client.auth.setSession(prev.refreshToken!, accessToken: prev.accessToken);
           }
         } catch (_) {
-          // session restore failed, but try insert anyway — admin may still be logged in
         }
+      }
+
+      final profileExists = await _client
+          .from('profiles')
+          .select('id')
+          .eq('id', authRes.user!.id)
+          .maybeSingle();
+      if (profileExists != null) {
+        throw Exception('Email "$email" is already used by another staff member.');
       }
 
       filtered['id'] = authRes.user!.id;
