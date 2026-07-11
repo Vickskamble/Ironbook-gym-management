@@ -24,11 +24,11 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  String _selectedRole = 'Trainer';
+  String _selectedRole = 'staff';
   String? _profilePicPath;
   bool _isLoading = false;
 
-  final List<String> _roles = ['Trainer', 'Receptionist', 'Cleaner', 'Manager', 'Other'];
+  final List<String> _roles = ['staff', 'trainer', 'admin'];
 
   @override
   void dispose() {
@@ -67,7 +67,7 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
         updatedAt: DateTime.now(),
       );
 
-      await ref.read(staffProvider.notifier).addStaff(staff);
+      await ref.read(staffProvider.notifier).addStaff(staff, password: _passwordController.text);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

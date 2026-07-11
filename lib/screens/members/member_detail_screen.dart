@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../providers/member_provider.dart';
+import '../../providers/plan_provider.dart';
 import '../../models/member_model.dart';
+import '../../models/plan_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
@@ -315,8 +317,13 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
             _buildInfoRow(Icons.email_rounded, 'Email', member.email!),
           _buildInfoRow(Icons.calendar_today_rounded, 'Join Date',
                '${member.joinDate.day}/${member.joinDate.month}/${member.joinDate.year}'),
-          _buildInfoRow(
-              Icons.card_giftcard_rounded, 'Plan', member.planName ?? 'No Plan'),
+          GestureDetector(
+            onTap: () => _showPlanPicker(member),
+            child: _buildInfoRow(
+              Icons.card_giftcard_rounded, 'Plan', member.planName ?? 'No Plan',
+              trailing: const Icon(Icons.edit_rounded, size: 14, color: AppColors.primary),
+            ),
+          ),
           if (member.age != null)
             _buildInfoRow(Icons.person_rounded, 'Age', '${member.age}'),
           if (member.address != null)
@@ -327,7 +334,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value) {
+  Widget _buildInfoRow(IconData icon, String label, String value, {Widget? trailing}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
@@ -370,8 +377,59 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
               ],
             ),
           ),
+          if (trailing != null) trailing,
         ],
       ),
     );
+  }
+
+  Future<void> _showPlanPicker(MemberModel member) async {
+    final gymId = ref.read(authProvider).gymId;
+    if (gymId == null) return;
+    final plans = await ref.read(planProvider(gymId).future);
+    final activePlans = plans.where((p) => p.isActive).toList();
+    if (!mounted) return;
+    final result = await showModalBottomSheet<PlanModel>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Select Plan',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+            const SizedBox(height: 16),
+            ...activePlans.map((plan) => ListTile(
+              leading: Icon(Icons.card_giftcard_rounded,
+                color: member.planId == plan.id ? AppColors.primary : AppColors.textMuted),
+              title: Text(plan.name, style: const TextStyle(color: AppColors.textPrimary)),
+              subtitle: Text(plan.formattedPrice, style: const TextStyle(color: AppColors.textSecondary)),
+              trailing: member.planId == plan.id
+                  ? const Icon(Icons.check_circle, color: AppColors.primary)
+                  : null,
+              onTap: () => Navigator.pop(ctx, plan),
+            )),
+          ],
+        ),
+      ),
+    );
+    if (result != null && mounted) {
+      final gId = ref.read(authProvider).gymId!;
+      await ref.read(memberListProvider(gId).notifier).updateMember(widget.memberId, {
+        'plan_id': result.id,
+        'plan_name': result.name,
+      });
+      ref.invalidate(memberDetailProvider((gymId: gId, memberId: widget.memberId)));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Plan updated to ${result.name}'), backgroundColor: AppColors.success),
+        );
+      }
+    }
   }
 }

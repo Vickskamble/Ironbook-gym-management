@@ -9,6 +9,7 @@ import '../../models/member_model.dart';
 import '../../core/constants/app_colors.dart';
 import '../../widgets/glass_container.dart';
 import '../../widgets/skeleton_loader.dart';
+import '../../widgets/center_toast.dart';
 
 class MarkAttendanceScreen extends ConsumerStatefulWidget {
   const MarkAttendanceScreen({super.key});
@@ -59,14 +60,7 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
       ref.invalidate(todayAttendanceProvider(gymId));
       _searchController.clear();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${member.name} checked in successfully'),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+      showCenterToast(context, '${member.name} checked in');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

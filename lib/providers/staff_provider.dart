@@ -43,11 +43,11 @@ class StaffNotifier extends AsyncNotifier<List<StaffModel>> {
     });
   }
 
-  Future<void> addStaff(StaffModel staff) async {
+  Future<void> addStaff(StaffModel staff, {String? password}) async {
     ErrorHandler.logStep('StaffNotifier', 'addStaff', {'name': staff.name});
     final gymId = ref.read(authProvider).gymId;
     if (gymId == null) return;
-    final data = _staffToMap(staff, gymId);
+    final data = _staffToMap(staff, gymId, password: password);
     await ref.read(staffRepositoryProvider).addStaff(data);
     await _refetch();
   }
@@ -81,7 +81,7 @@ class StaffNotifier extends AsyncNotifier<List<StaffModel>> {
     });
   }
 
-  Map<String, dynamic> _staffToMap(StaffModel staff, String gymId) {
+  Map<String, dynamic> _staffToMap(StaffModel staff, String gymId, {String? password}) {
     final map = <String, dynamic>{
       'name': staff.name,
       'phone': staff.phone,
@@ -90,6 +90,9 @@ class StaffNotifier extends AsyncNotifier<List<StaffModel>> {
       'gym_id': gymId,
       'is_active': staff.status != 'Terminated',
     };
+    if (password != null && password.isNotEmpty) {
+      map['password'] = password;
+    }
     if (staff.profilePic != null) {
       map['avatar_url'] = staff.profilePic;
     }

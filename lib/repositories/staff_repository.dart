@@ -52,19 +52,28 @@ class StaffRepository {
   Future<ProfileModel> addStaff(Map<String, dynamic> staff) async {
     ErrorHandler.logStep('StaffRepository.addStaff', 'called');
     try {
-      const allowedFields = {'name', 'phone', 'email', 'role', 'gym_id', 'avatar_url'};
+      const allowedFields = {'id', 'name', 'phone', 'email', 'role', 'gym_id', 'avatar_url', 'is_active'};
       var filtered = Map<String, dynamic>.fromEntries(
         staff.entries.where((e) => allowedFields.contains(e.key)),
       );
+
+      final email = filtered['email'] as String?;
+      if (email == null || email.isEmpty) {
+        throw Exception('Email is required to create staff login');
+      }
+
+      if (!_isValidEmail(email)) {
+        throw Exception('Invalid email format');
+      }
 
       final phone = filtered['phone'] as String?;
       if (phone != null && phone.isNotEmpty && !_isValidPhone(phone)) {
         throw Exception('Invalid phone number');
       }
 
-      final email = filtered['email'] as String?;
-      if (email != null && email.isNotEmpty && !_isValidEmail(email)) {
-        throw Exception('Invalid email format');
+      final password = staff['password'] as String?;
+      if (password == null || password.isEmpty) {
+        throw Exception('Password is required to create staff login');
       }
 
       if (filtered['role'] == 'superadmin') {
@@ -76,6 +85,15 @@ class StaffRepository {
         final url = await _uploadAvatar(avatarPath);
         filtered['avatar_url'] = url;
       }
+
+      final authRes = await _client.auth.signUp(
+        email: email,
+        password: password,
+        data: {'name': filtered['name'], 'role': filtered['role']},
+      );
+      if (authRes.user == null) throw Exception('Failed to create auth user');
+
+      filtered['id'] = authRes.user!.id;
 
       final response = await _client
           .from('profiles')

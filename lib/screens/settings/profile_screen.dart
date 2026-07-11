@@ -66,25 +66,40 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Future<String?> _uploadAvatar(String userId) async {
     if (_pendingImage == null) return null;
-    final ext = _pendingImage!.path.split('.').last;
+    final ext = _pendingImage!.path.split('.').last.toLowerCase();
+    const allowed = {'png', 'jpg', 'jpeg', 'gif', 'webp'};
+    if (!allowed.contains(ext)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invalid file type'), backgroundColor: AppColors.danger),
+        );
+      }
+      return null;
+    }
+    final fileSize = await _pendingImage!.length();
+    if (fileSize > 5242880) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('File too large (max 5MB)'), backgroundColor: AppColors.danger),
+        );
+      }
+      return null;
+    }
     final path = 'avatars/$userId.$ext';
     try {
-      await Supabase.instance.client.storage.from('avatars').upload(path, _pendingImage!, fileOptions: const FileOptions(upsert: true));
-      final url = Supabase.instance.client.storage.from('avatars').getPublicUrl(path);
-      return url;
-    } catch (_) {
-      try {
-        await Supabase.instance.client.storage.from('profiles').upload(path, _pendingImage!, fileOptions: const FileOptions(upsert: true));
-        final url = Supabase.instance.client.storage.from('profiles').getPublicUrl(path);
-        return url;
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Photo upload failed: $e'), backgroundColor: AppColors.danger),
-          );
-        }
-        return null;
+      final contentType = ext == 'png' ? 'image/png' : 'image/jpeg';
+      await Supabase.instance.client.storage.from('avatars').upload(
+        path, _pendingImage!,
+        fileOptions: FileOptions(upsert: true, contentType: contentType),
+      );
+      return Supabase.instance.client.storage.from('avatars').getPublicUrl(path);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Photo upload failed: $e'), backgroundColor: AppColors.danger),
+        );
       }
+      return null;
     }
   }
 

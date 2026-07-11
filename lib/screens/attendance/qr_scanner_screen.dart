@@ -52,15 +52,9 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
       final name = member['name'] as String;
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$name checked in successfully'),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        showCenterToast(context, '$name checked in');
         ref.invalidate(todayAttendanceProvider(gymId));
-        context.pop();
+        Future.delayed(const Duration(milliseconds: 600), () { if (mounted) context.pop(); });
       }
     } catch (e) {
       _showError(e.toString().replaceFirst('Exception: ', ''));

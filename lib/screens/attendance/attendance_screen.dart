@@ -494,7 +494,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text('$success member(s) checked in${failed > 0 ? ', $failed failed' : ''}'),
+                                    content: Text('$success member(s) checked in${failed > 0 ? ', $failed failed' : ''}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
                                     backgroundColor: failed > 0 ? AppColors.warning : const Color(0xFF10B981),
                                     behavior: SnackBarBehavior.floating,
                                   ),
