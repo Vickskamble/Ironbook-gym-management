@@ -15,10 +15,6 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository(Supabase.instance.client);
 });
 
-final gymProvider = StateProvider<GymModel?>((ref) {
-  return null;
-});
-
 class AuthState {
   final ProfileModel? profile;
   final GymModel? gym;
