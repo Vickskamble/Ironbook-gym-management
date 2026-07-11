@@ -169,7 +169,10 @@ class AppShell extends ConsumerWidget {
     final color = _colorFor(route, current);
     final locked = plan != null && !_mayAccess(context, route, plan);
     return GestureDetector(
-      onTap: () => locked && plan != null ? _mayAccess(context, route, plan) : context.go(route),
+      onTap: () {
+        if (locked) _mayAccess(context, route, plan);
+        else context.go(route);
+      },
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
