@@ -331,6 +331,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
     );
   }
 
+  Future<void> refreshGym() async {
+    final currentProfile = state.profile;
+    if (currentProfile?.gymId == null) return;
+    try {
+      final gym = await _fetchGym(currentProfile!.gymId);
+      state = state.copyWith(gym: gym);
+    } catch (_) {}
+  }
+
   String _getUserFriendlyError(Object error) {
     final msg = error.toString().toLowerCase();
     

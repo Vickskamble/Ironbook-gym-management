@@ -8,7 +8,7 @@ final gymRepositoryProvider = Provider<GymRepository>((ref) {
   return GymRepository(Supabase.instance.client);
 });
 
-final gymProvider = FutureProvider.family<GymModel, String>((ref, gymId) {
+final gymProvider = FutureProvider.autoDispose.family<GymModel, String>((ref, gymId) {
   ErrorHandler.logStep('gymProvider', 'build', {'gymId': gymId});
   return ref.read(gymRepositoryProvider).getGym(gymId);
 });

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/gym_provider.dart';
 import '../../models/gym_model.dart';
 import '../../repositories/payment_request_repository.dart';
 import '../../core/constants/app_colors.dart';
@@ -50,7 +51,7 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
             final newStatus = payload.newRecord['status'] as String?;
             if (newStatus == 'completed' && mounted) {
               _realtimeChannel?.unsubscribe();
-              ref.invalidate(authProvider);
+              ref.read(authProvider.notifier).refreshGym();
               showDialog(
                 context: context,
                 barrierDismissible: false,
@@ -129,7 +130,8 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
-    final gym = authState.gym;
+    final gymAsync = ref.watch(gymProvider(authState.gymId ?? ''));
+    final gym = gymAsync.asData?.value ?? authState.gym;
     final isFree = gym == null || gym.subscription == 'free';
     final currentPlan = gym?.subscription ?? 'free';
 
