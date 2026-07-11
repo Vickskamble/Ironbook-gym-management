@@ -66,6 +66,9 @@ migrate_working_dir/
 # Environment files
 .env
 
+# Supabase temp files
+supabase/.temp/
+
 # Windows related
 **/windows/**/*.exe
 **/windows/**/build/
