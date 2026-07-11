@@ -69,7 +69,7 @@ class NotificationService {
               final title = data['title'] as String? ?? 'IronBook';
               final body = data['body'] as String? ?? '';
               final type = data['type'] as String? ?? 'general';
-              debugPrint('[Notifications] Realtime notification: $title');
+              if (kDebugMode) debugPrint('[Notifications] Realtime notification: $title');
               _showLocalNotification(title, body, type);
             },
           )
@@ -80,7 +80,7 @@ class NotificationService {
   }
 
   void _onLocalNotificationTap(NotificationResponse response) {
-    debugPrint('[Notifications] Local notification tapped: ${response.payload}');
+    if (kDebugMode) debugPrint('[Notifications] Local notification tapped: ${response.payload}');
   }
 
   Future<void> _showLocalNotification(String title, String body, String type) async {

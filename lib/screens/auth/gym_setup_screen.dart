@@ -3,12 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:ironbook/core/constants/app_colors.dart';
-import 'package:ironbook/providers/auth_provider.dart';
-import 'package:ironbook/widgets/custom_text_field.dart';
-import 'package:ironbook/widgets/primary_button.dart';
-import 'package:ironbook/core/utils/error_handler.dart';
-import 'package:ironbook/models/gym_model.dart';
+import '../../core/constants/app_colors.dart';
+import '../../providers/auth_provider.dart';
+import '../../widgets/custom_text_field.dart';
+import '../../widgets/primary_button.dart';
+import '../../core/utils/error_handler.dart';
+import '../../models/gym_model.dart';
 
 class GymSetupScreen extends ConsumerStatefulWidget {
   const GymSetupScreen({super.key});

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -35,19 +36,19 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   Future<void> _init() async {
     try {
-      debugPrint('[Splash] _init started');
+      if (kDebugMode) debugPrint('[Splash] _init started');
       await ref.read(authProvider.notifier).waitForInit()
           .timeout(const Duration(seconds: 5), onTimeout: () => null);
       if (!mounted) return;
       final authState = ref.read(authProvider);
 
       if (authState.profile != null) {
-        debugPrint('[Splash] Profile found, navigating to home');
+        if (kDebugMode) debugPrint('[Splash] Profile found, navigating to home');
         _goHome(authState.profile!.role);
         return;
       }
 
-      debugPrint('[Splash] No profile, checking SharedPreferences');
+      if (kDebugMode) debugPrint('[Splash] No profile, checking SharedPreferences');
       final SharedPreferences prefs = await SharedPreferences.getInstance()
           .timeout(const Duration(seconds: 3));
       if (!mounted) return;
@@ -59,7 +60,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         context.go(seenOnboarding ? '/login' : '/onboarding');
       }
     } catch (e) {
-      debugPrint('[Splash] _init error: $e');
+      if (kDebugMode) debugPrint('[Splash] _init error: $e');
       if (!mounted) return;
       context.go('/login');
     }
