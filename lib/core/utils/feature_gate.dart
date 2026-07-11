@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
-import '../services/subscription_service.dart';
 
 enum AppFeature {
   staff,

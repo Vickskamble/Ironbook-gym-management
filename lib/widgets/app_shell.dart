@@ -158,7 +158,7 @@ class AppShell extends ConsumerWidget {
       trailing: Icon(locked ? Icons.lock_rounded : Icons.chevron_right_rounded, color: AppColors.textMuted, size: 18),
       onTap: () {
         Navigator.pop(context);
-        if (!locked || _mayAccess(context, route, plan!)) context.go(route);
+        if (plan == null || !locked || _mayAccess(context, route, plan)) context.go(route);
       },
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     );
@@ -169,7 +169,7 @@ class AppShell extends ConsumerWidget {
     final color = _colorFor(route, current);
     final locked = plan != null && !_mayAccess(context, route, plan);
     return GestureDetector(
-      onTap: () => locked ? _mayAccess(context, route, plan!) : context.go(route),
+      onTap: () => locked && plan != null ? _mayAccess(context, route, plan) : context.go(route),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

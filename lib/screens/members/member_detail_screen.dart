@@ -377,7 +377,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
               ],
             ),
           ),
-          if (trailing != null) trailing,
+          ?trailing,
         ],
       ),
     );
