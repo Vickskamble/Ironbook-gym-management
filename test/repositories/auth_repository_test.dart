@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ironbook/repositories/auth_repository.dart';
 
 import 'helpers/mock_supabase.dart';

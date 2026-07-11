@@ -35,7 +35,7 @@ create table if not exists public.gyms (
   phone                 text not null default '',
   type                  text,
   owner_id              uuid references public.profiles(id) on delete set null,
-  subscription          text not null default 'free' check (subscription in ('free','starter','pro','enterprise')),
+  subscription          text not null default 'free' check (subscription in ('free','pro','enterprise')),
   subscription_expires_at timestamptz,
   is_active             boolean not null default true,
   logo_url              text,

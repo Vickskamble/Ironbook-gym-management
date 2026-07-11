@@ -2,6 +2,20 @@
 
 A SaaS Multi-Gym Management App built with Flutter + Supabase.
 
+## Screenshots
+
+<p align="center">
+  <img src="assets/images/screenshot_1.jpg" width="200" />
+  <img src="assets/images/screenshot_2.jpg" width="200" />
+  <img src="assets/images/screenshot_3.jpg" width="200" />
+  <img src="assets/images/screenshot_4.jpg" width="200" />
+  <img src="assets/images/screenshot_5.jpg" width="200" />
+  <img src="assets/images/screenshot_6.jpg" width="200" />
+  <img src="assets/images/screenshot_7.jpg" width="200" />
+  <img src="assets/images/screenshot_8.jpg" width="200" />
+  <img src="assets/images/screenshot_9.jpg" width="200" />
+</p>
+
 ## Features
 
 - **Member Management** — Add, edit, search, track membership expiry
@@ -36,61 +50,32 @@ A SaaS Multi-Gym Management App built with Flutter + Supabase.
 ### Steps
 
 ```bash
-# 1. Clone
 git clone https://github.com/your-username/ironbook.git
 cd ironbook
 
-# 2. Create .env file
 cp .env.example .env
 
-# 3. Add your Supabase credentials in .env
-#    Get these from your Supabase project dashboard
-#    Settings → API → Project URL + anon key
+# Add your Supabase credentials in .env
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your-anon-key-here
 
-# 4. Run database migrations
-#    Open supabase_schema.sql in Supabase SQL Editor and run it
-#    Then run supabase_migration.sql
-
-# 5. (Optional) Seed demo data
-#    Open supabase/seed.sql in Supabase SQL Editor and run it
-
-# 6. Install dependencies & run
 flutter pub get
 flutter run
 ```
 
-### Database Setup
-1. Go to your Supabase project dashboard
-2. Open **SQL Editor**
-3. Copy-paste and run **`supabase_schema.sql`** (creates all tables, indexes, RLS policies, triggers)
-4. Then run **`supabase_migration.sql`** (creates gym_settings & import_logs tables)
-5. (Optional) Run **`supabase/seed.sql`** for demo data
+Run `supabase_schema.sql` then `supabase_migration.sql` in Supabase SQL Editor.
 
 ## Project Structure
 
 ```
 lib/
-├── core/
-│   ├── constants/        # Colors, strings
-│   ├── router/           # GoRouter + auth guards
-│   ├── services/         # Notifications, offline queue, subscription
-│   ├── theme/            # Dark theme
-│   └── utils/            # Validators, error handler, network
-├── models/               # Data models (member, plan, payment, etc.)
-├── providers/            # Riverpod state providers
-├── repositories/         # Supabase data access layer
-├── screens/              # UI screens (auth, members, plans, etc.)
-└── widgets/              # Reusable widgets (glass, buttons, cards)
+├── core/           # Constants, router, services, theme, utils
+├── models/         # Data models (member, plan, payment, etc.)
+├── providers/      # Riverpod state providers
+├── repositories/   # Supabase data access layer
+├── screens/        # UI screens (auth, members, plans, etc.)
+└── widgets/        # Reusable widgets
 ```
-
-## Environment Variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `SUPABASE_URL` | Yes | Supabase project URL |
-| `SUPABASE_ANON_KEY` | Yes | Supabase anonymous key |
 
 ## Security
 
@@ -101,7 +86,3 @@ lib/
 - File upload validation (type, size, magic bytes)
 - Password minimum 8 characters
 - No PII in application logs
-
-## License
-
-MIT

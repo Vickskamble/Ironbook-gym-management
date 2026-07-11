@@ -86,12 +86,16 @@ class StaffRepository {
         filtered['avatar_url'] = url;
       }
 
+      final prev = _client.auth.currentSession;
       final authRes = await _client.auth.signUp(
         email: email,
         password: password,
         data: {'name': filtered['name'], 'role': filtered['role']},
       );
       if (authRes.user == null) throw Exception('Failed to create auth user');
+      if (prev != null && authRes.session != null && authRes.session!.accessToken != prev.accessToken) {
+        await _client.auth.setSession(prev.refreshToken ?? '', accessToken: prev.accessToken);
+      }
 
       filtered['id'] = authRes.user!.id;
 

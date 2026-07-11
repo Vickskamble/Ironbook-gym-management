@@ -66,31 +66,33 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Future<String?> _uploadAvatar(String userId) async {
     if (_pendingImage == null) return null;
-    final ext = _pendingImage!.path.split('.').last.toLowerCase();
-    const allowed = {'png', 'jpg', 'jpeg', 'gif', 'webp'};
-    if (!allowed.contains(ext)) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invalid file type'), backgroundColor: AppColors.danger),
-        );
-      }
-      return null;
-    }
-    final fileSize = await _pendingImage!.length();
-    if (fileSize > 5242880) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('File too large (max 5MB)'), backgroundColor: AppColors.danger),
-        );
-      }
-      return null;
-    }
-    final path = 'avatars/$userId.$ext';
     try {
-      final contentType = ext == 'png' ? 'image/png' : 'image/jpeg';
-      await Supabase.instance.client.storage.from('avatars').upload(
-        path, _pendingImage!,
-        fileOptions: FileOptions(upsert: true, contentType: contentType),
+      final bytes = await _pendingImage!.readAsBytes();
+      if (bytes.length > 5242880) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('File too large (max 5MB)'), backgroundColor: AppColors.danger),
+          );
+        }
+        return null;
+      }
+      String ext = 'jpg';
+      String mime = 'image/jpeg';
+      if (bytes.length >= 4) {
+        if (bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47) {
+          ext = 'png'; mime = 'image/png';
+        } else if (bytes[0] == 0xFF && bytes[1] == 0xD8) {
+          ext = 'jpg'; mime = 'image/jpeg';
+        } else if (bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46) {
+          ext = 'gif'; mime = 'image/gif';
+        } else if (bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46) {
+          ext = 'webp'; mime = 'image/webp';
+        }
+      }
+      final path = 'avatars/$userId.$ext';
+      await Supabase.instance.client.storage.from('avatars').uploadBinary(
+        path, bytes,
+        fileOptions: FileOptions(upsert: true, contentType: mime),
       );
       return Supabase.instance.client.storage.from('avatars').getPublicUrl(path);
     } catch (e) {

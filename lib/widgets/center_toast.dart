@@ -57,7 +57,9 @@ OverlayEntry _buildToast(BuildContext context, String message, {IconData icon = 
 }
 
 void showCenterToast(BuildContext context, String message, {IconData icon = Icons.check_circle, Color color = AppColors.success}) {
-  final overlay = Overlay.of(context);
+  final nav = Navigator.of(context, rootNavigator: true);
+  final overlay = nav.overlay;
+  if (overlay == null) return;
   final entry = _buildToast(context, message, icon: icon, color: color);
   overlay.insert(entry);
   Future.delayed(const Duration(seconds: 2), () => entry.remove());

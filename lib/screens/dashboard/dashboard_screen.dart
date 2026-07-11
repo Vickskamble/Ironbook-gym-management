@@ -194,7 +194,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 Stack(
                   children: [
                     IconButton(
-                      onPressed: () => context.push('/notifications/bulk'),
+                      onPressed: () => context.push('/notifications'),
                       icon: const Icon(Icons.notifications_none, size: 20),
                       color: AppColors.textSecondary,
                       constraints: const BoxConstraints(
@@ -403,25 +403,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   accentColor: const Color(0xFF6366F1),
                   value: stats.totalMembers.toString(),
                   label: 'Total Members',
+                  onTap: () => context.push('/members'),
                 ),
                 _buildStatCard(
                   icon: Icons.currency_rupee_rounded,
                   accentColor: const Color(0xFF10B981),
                   value: 'Rs${stats.thisMonthRevenue.toStringAsFixed(0)}',
                   label: 'This Month',
+                  onTap: () => context.push('/payments'),
                 ),
                 _buildStatCard(
                   icon: Icons.check_circle_outline,
                   accentColor: const Color(0xFF10B981),
                   value: stats.activeMembers.toString(),
                   label: 'Active',
+                  onTap: () => context.push('/members'),
                 ),
                 _buildStatCard(
                   icon: Icons.warning_amber_rounded,
                   accentColor: const Color(0xFFF59E0B),
                   value: stats.expiringSoon.toString(),
                   label: 'Expiring Soon',
-                  onTap: () => context.go('/notifications/bulk'),
+                  onTap: () => context.push('/notifications'),
                 ),
               ],
             ),
@@ -672,17 +675,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   String _monthNameFromMonthIndex(String monthIndex) {
     final parts = monthIndex.split(' ');
-    if (parts.length < 2) return monthIndex;
+    if (parts.isEmpty) return monthIndex;
     final monthNum = int.tryParse(parts[0]) ?? 0;
-    final year = parts[1];
     
     const monthNames = [
       'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
     
-    final monthName = monthNum > 0 && monthNum <= 12 ? monthNames[monthNum - 1] : '';
-    return monthNum > 0 ? '$monthName $year' : monthIndex;
+    return monthNum > 0 && monthNum <= 12 ? monthNames[monthNum - 1] : monthIndex;
   }
 
   double _getMaxRevenue(List<MonthlyRevenue> revenueData) {
