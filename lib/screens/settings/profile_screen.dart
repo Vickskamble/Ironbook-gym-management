@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -26,7 +26,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _gymWebsiteCtrl = TextEditingController();
   bool _editing = false;
   bool _saving = false;
-  File? _pendingImage;
+  Uint8List? _pendingImageBytes;
 
   @override
   void dispose() {
@@ -55,19 +55,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void _cancelEdit() {
     setState(() {
       _editing = false;
-      _pendingImage = null;
+      _pendingImageBytes = null;
     });
   }
 
   Future<void> _pickImage() async {
     final file = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (file != null) setState(() => _pendingImage = File(file.path));
+    if (file != null) {
+      final bytes = await file.readAsBytes();
+      setState(() => _pendingImageBytes = bytes);
+    }
   }
 
   Future<String?> _uploadAvatar(String userId) async {
-    if (_pendingImage == null) return null;
+    if (_pendingImageBytes == null) return null;
     try {
-      final bytes = await _pendingImage!.readAsBytes();
+      final bytes = _pendingImageBytes!;
       if (bytes.length > 5242880) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -113,7 +116,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     setState(() => _saving = true);
     try {
       String? avatarUrl;
-      if (_pendingImage != null) avatarUrl = await _uploadAvatar(profile.id);
+      if (_pendingImageBytes != null) avatarUrl = await _uploadAvatar(profile.id);
 
       final profileData = <String, dynamic>{
         'name': _nameCtrl.text.trim(),
@@ -136,7 +139,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ref.read(authProvider.notifier).updateProfileData(updatedProfile, updatedGym ?? gym);
       setState(() {
         _editing = false;
-        _pendingImage = null;
+        _pendingImageBytes = null;
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -339,12 +342,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           CircleAvatar(
             radius: 44,
             backgroundColor: AppColors.surface,
-            backgroundImage: _pendingImage != null
-                ? FileImage(_pendingImage!)
+            backgroundImage: _pendingImageBytes != null
+                ? MemoryImage(_pendingImageBytes!)
                 : (avatarUrl != null && avatarUrl.isNotEmpty
                     ? CachedNetworkImageProvider(avatarUrl) as ImageProvider
                     : null),
-            child: _pendingImage == null && (avatarUrl == null || avatarUrl.isEmpty)
+            child: _pendingImageBytes == null && (avatarUrl == null || avatarUrl.isEmpty)
                 ? const Icon(Icons.person_rounded, size: 44, color: AppColors.primary)
                 : null,
           ),

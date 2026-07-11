@@ -7,6 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/member_provider.dart';
 import '../../models/member_model.dart';
 import '../../models/attendance_model.dart';
+import '../../widgets/center_toast.dart';
 
 class AttendanceScreen extends ConsumerStatefulWidget {
   const AttendanceScreen({super.key});
@@ -492,12 +493,8 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                               ref.invalidate(todayAttendanceProvider(gymId));
                               if (sheetContext.mounted) Navigator.pop(sheetContext);
                               if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('$success member(s) checked in${failed > 0 ? ', $failed failed' : ''}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-                                    backgroundColor: failed > 0 ? AppColors.warning : const Color(0xFF10B981),
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
+                                showCenterToast(context, '$success checked in${failed > 0 ? ', $failed failed' : ''}',
+                                  color: failed > 0 ? AppColors.warning : AppColors.success,
                                 );
                               }
                             },

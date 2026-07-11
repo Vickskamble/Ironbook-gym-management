@@ -83,14 +83,7 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
       ref.invalidate(todayAttendanceProvider(gymId));
       if (!mounted) return;
       final name = record.memberName ?? 'Member';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('$name checked out successfully'),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+      showCenterToast(context, '$name checked out');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
