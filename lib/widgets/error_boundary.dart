@@ -22,29 +22,36 @@ class ErrorBoundary extends StatefulWidget {
 class _ErrorBoundaryState extends State<ErrorBoundary> {
   Object? _error;
   StackTrace? _stackTrace;
+  void Function(FlutterErrorDetails)? _oldHandler;
 
   @override
   void initState() {
     super.initState();
     ErrorHandler.logInfo('ErrorBoundary', 'Initialized');
 
+    _oldHandler = FlutterError.onError;
     FlutterError.onError = _onFlutterError;
+  }
+
+  @override
+  void dispose() {
+    FlutterError.onError = _oldHandler;
+    super.dispose();
   }
 
   void _onFlutterError(FlutterErrorDetails details) {
     ErrorHandler.logError('ErrorBoundary.caught', details.exception, details.stack);
     widget.onError?.call(details.exception, details.stack);
     if (mounted) {
-      setState(() {
-        _error = details.exception;
-        _stackTrace = details.stack;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _error = details.exception;
+            _stackTrace = details.stack;
+          });
+        }
       });
     }
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
   }
 
   @override
