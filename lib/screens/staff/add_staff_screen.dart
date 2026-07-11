@@ -177,9 +177,10 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
                     const SizedBox(height: 16),
                     CustomTextField(
                       controller: _passwordController,
-                      label: 'Password (optional)',
+                      label: 'Password',
                       hintText: 'Set login password',
                       obscureText: true,
+                      validator: (value) => value == null || value.isEmpty ? 'Password is required' : null,
                     ),
                   ],
                 ),

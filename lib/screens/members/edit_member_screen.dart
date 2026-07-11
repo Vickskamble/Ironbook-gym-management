@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/member_provider.dart';
+import '../../providers/plan_provider.dart';
+import '../../models/plan_model.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/primary_button.dart';
 import '../../core/utils/validators.dart';
@@ -27,6 +29,7 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
   bool _isLoading = false;
   bool _initialized = false;
   DateTime _joinDate = DateTime.now();
+  PlanModel? _selectedPlan;
 
   @override
   void dispose() {
@@ -59,6 +62,41 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
     }
   }
 
+  Future<void> _pickPlan(List<PlanModel> plans) async {
+    final active = plans.where((p) => p.isActive).toList();
+    if (!mounted) return;
+    final result = await showModalBottomSheet<PlanModel>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Select Plan', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+            const SizedBox(height: 16),
+            ...active.map((plan) => ListTile(
+              leading: Icon(Icons.card_giftcard_rounded, color: _selectedPlan?.id == plan.id ? AppColors.primary : AppColors.textMuted),
+              title: Text(plan.name, style: const TextStyle(color: AppColors.textPrimary)),
+              subtitle: Text(plan.formattedPrice, style: const TextStyle(color: AppColors.textSecondary)),
+              trailing: _selectedPlan?.id == plan.id ? const Icon(Icons.check_circle, color: AppColors.primary) : null,
+              onTap: () => Navigator.pop(ctx, plan),
+            )),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, null),
+              child: const Text('Clear Plan', style: TextStyle(color: AppColors.textMuted)),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (mounted) {
+      setState(() => _selectedPlan = result);
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
@@ -77,6 +115,10 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
             ? null
             : _addressController.text.trim(),
         'join_date': _joinDate.toIso8601String().split('T')[0],
+        if (_selectedPlan != null) ...{
+          'plan_id': _selectedPlan!.id,
+          'plan_name': _selectedPlan!.name,
+        },
       };
 
       final gymId = ref.read(authProvider).gymId;
@@ -123,7 +165,7 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (err, _) => Center(child: Text('$err')),
                 data: (member) {
-                  if (!_initialized) {
+                    if (!_initialized) {
               _nameController.text = member.name;
               _phoneController.text = member.phone;
               _emailController.text = member.email ?? '';
@@ -132,6 +174,7 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
               _joinDate = member.joinDate;
               _initialized = true;
             }
+            final plansAsync = ref.watch(planProvider(gymId));
 
             return SingleChildScrollView(
               padding: const EdgeInsets.all(24),
@@ -210,6 +253,42 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
                                 ],
                               ),
                             ),
+                          ),
+                          const SizedBox(height: 16),
+                          plansAsync.when(
+                            data: (plans) => GestureDetector(
+                              onTap: () => _pickPlan(plans),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: AppColors.border),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.card_giftcard_rounded, color: AppColors.primary, size: 20),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text('Plan', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            _selectedPlan?.name ?? member.planName ?? 'No Plan',
+                                            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Icon(Icons.arrow_drop_down_rounded, color: AppColors.textMuted, size: 22),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            loading: () => const SizedBox.shrink(),
+                            error: (e, _) => const SizedBox.shrink(),
                           ),
                           const SizedBox(height: 32),
                           PrimaryButton(

@@ -93,8 +93,14 @@ class StaffRepository {
         data: {'name': filtered['name'], 'role': filtered['role']},
       );
       if (authRes.user == null) throw Exception('Failed to create auth user');
-      if (prev != null && authRes.session != null && authRes.session!.accessToken != prev.accessToken) {
-        await _client.auth.setSession(prev.refreshToken ?? '', accessToken: prev.accessToken);
+      if (prev != null && authRes.session != null) {
+        try {
+          if (prev.refreshToken != null && prev.refreshToken!.isNotEmpty) {
+            await _client.auth.setSession(prev.refreshToken!, accessToken: prev.accessToken);
+          }
+        } catch (_) {
+          // session restore failed, but try insert anyway — admin may still be logged in
+        }
       }
 
       filtered['id'] = authRes.user!.id;
