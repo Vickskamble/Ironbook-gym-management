@@ -624,12 +624,9 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
                   style: const TextStyle(color: AppColors.textPrimary),
                   items: const [
                     DropdownMenuItem(value: 'free', child: Text('Free')),
-                    DropdownMenuItem(value: 'starter', child: Text('Starter')),
-                    DropdownMenuItem(value: 'pro', child: Text('Pro')),
-                    DropdownMenuItem(
-                      value: 'enterprise',
-                      child: Text('Enterprise'),
-                    ),
+                    DropdownMenuItem(value: 'trial', child: Text('Trial (₹1)')),
+                    DropdownMenuItem(value: 'pro', child: Text('Pro (₹499)')),
+                    DropdownMenuItem(value: 'enterprise', child: Text('Enterprise (₹899)')),
                   ],
                   onChanged: (value) {
                     if (value != null) {

@@ -1,9 +1,14 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/gym_model.dart';
+import '../../repositories/payment_request_repository.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/utils/error_handler.dart';
 import '../../widgets/glass_container.dart';
 import '../../widgets/primary_button.dart';
 import '../../core/services/subscription_service.dart';
@@ -18,6 +23,108 @@ class PricingScreen extends ConsumerStatefulWidget {
 class _PricingScreenState extends ConsumerState<PricingScreen> {
   String? _upgradingPlan;
   final bool _showFreeBanner = false;
+  RealtimeChannel? _realtimeChannel;
+
+  static const _websiteBaseUrl = 'https://www.brilliants.in';
+
+  @override
+  void dispose() {
+    _realtimeChannel?.unsubscribe();
+    super.dispose();
+  }
+
+  void _listenForPayment(String requestId) {
+    _realtimeChannel?.unsubscribe();
+    _realtimeChannel = Supabase.instance.client
+        .channel('payment-request-$requestId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'payment_requests',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'id',
+            value: requestId,
+          ),
+          callback: (payload) {
+            final newStatus = payload.newRecord['status'] as String?;
+            if (newStatus == 'completed' && mounted) {
+              _realtimeChannel?.unsubscribe();
+              ref.invalidate(authProvider);
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (ctx) => AlertDialog(
+                  backgroundColor: AppColors.surface,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    side: const BorderSide(color: AppColors.border),
+                  ),
+                  title: const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 48),
+                  content: const Text(
+                    'Payment verified! Your plan has been activated.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        setState(() => _upgradingPlan = null);
+                      },
+                      child: const Text('OK', style: TextStyle(color: AppColors.primary)),
+                    ),
+                  ],
+                ),
+              );
+            }
+          },
+        )
+        .subscribe();
+  }
+
+  Future<void> _initiatePayment(String planName) async {
+    final authState = ref.read(authProvider);
+    final gymId = authState.gymId;
+    if (gymId == null) return;
+
+    final tier = SubscriptionService.getTier(planName.toLowerCase());
+    if (tier == null || tier.price <= 0) return;
+
+    setState(() => _upgradingPlan = planName);
+
+    try {
+      final repo = PaymentRequestRepository(Supabase.instance.client);
+      final request = await repo.create(
+        gymId: gymId,
+        planType: planName.toLowerCase(),
+        planName: tier.name,
+        amount: tier.price,
+      );
+
+      _listenForPayment(request['id']);
+
+      final uri = Uri.parse('$_websiteBaseUrl/pay/?request_id=${request['id']}');
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Payment page opened for ${tier.name} plan'),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+      }
+    } catch (e, stack) {
+      ErrorHandler.logError('PricingScreen._initiatePayment', e, stack);
+      if (mounted) {
+        setState(() => _upgradingPlan = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.danger),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -251,7 +358,7 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
     final isFree = tier.id == 'free';
     final priceDisplay = tier.price == 0
         ? 'Free'
-        : '₹${_formatPrice(tier.price)}';
+        : '\u20B9${_formatPrice(tier.price)}';
 
     return GlassContainer(
       borderColor: isCurrent ? AppColors.primary.withValues(alpha: 0.3) : null,
@@ -386,7 +493,7 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
               width: double.infinity,
               height: 50,
               child: PrimaryButton(
-                text: 'Free — Get Started',
+                text: 'Free \u2014 Get Started',
                 onPressed: onUpgrade,
               ),
             ),
@@ -396,6 +503,7 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
   }
 
   String _getButtonLabel(String targetPlanName) {
+    if (targetPlanName.toLowerCase() == 'trial') return 'Try for ₹1';
     final authState = ref.read(authProvider);
     final current = authState.gym?.subscription ?? 'free';
     final isDowngrade = SubscriptionService.isDowngrade(current, targetPlanName.toLowerCase());
@@ -425,7 +533,7 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
         content: Text(
           isDowngrade
               ? 'Your current subscription will be replaced with the $planName plan. Some features may become unavailable.'
-              : 'Your current subscription will be replaced with the $planName plan.',
+              : 'You will be redirected to the payment page to complete the purchase.',
           style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
         ),
         actions: [
@@ -439,7 +547,7 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(
-              isDowngrade ? 'Downgrade' : 'Confirm',
+              isDowngrade ? 'Downgrade' : 'Pay Online',
               style: TextStyle(
                 color: isDowngrade ? AppColors.warning : AppColors.primary,
                 fontWeight: FontWeight.w700,
@@ -472,32 +580,25 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
     setState(() => _upgradingPlan = planName);
 
     try {
-      final service = ref.read(subscriptionServiceProvider);
-
       if (isDowngrade) {
+        final service = ref.read(subscriptionServiceProvider);
         await service.downgradePlan(gymId: gymId, plan: planName.toLowerCase(), context: context);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Downgraded to $planName'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+          ref.invalidate(authProvider);
+        }
       } else {
-        await service.upgradePlan(gymId: gymId, plan: planName.toLowerCase(), context: context);
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(isDowngrade
-                ? 'Downgraded to $planName'
-                : 'Upgraded to $planName successfully!'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-        ref.invalidate(authProvider);
+        await _initiatePayment(planName);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed: ${e.toString()}'),
-            backgroundColor: AppColors.danger,
-          ),
+          SnackBar(content: Text('Failed: ${e.toString()}'), backgroundColor: AppColors.danger),
         );
       }
     } finally {

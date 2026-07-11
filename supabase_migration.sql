@@ -123,6 +123,7 @@ begin
 end;
 $$ language plpgsql security definer;
 
+drop trigger if exists set_inventory_updated_at on public.inventory;
 create trigger set_inventory_updated_at
   before update on public.inventory
   for each row execute function public.handle_inventory_updated_at();
@@ -144,3 +145,64 @@ create index if not exists idx_members_phone on public.members(phone);
 -- Enable pg_trgm extension for fuzzy text search (if not already enabled)
 create extension if not exists pg_trgm;
 create index if not exists idx_members_name_trgm on public.members using gin(name gin_trgm_ops);
+
+-- Update gyms subscription constraint (replace 'starter' with 'free')
+alter table public.gyms drop constraint if exists gyms_subscription_check;
+alter table public.gyms add constraint gyms_subscription_check
+  check (subscription in ('free','trial','pro','enterprise'));
+
+-- ============================================================
+-- Payment Requests Table (Online Gym Subscription Purchases)
+-- ============================================================
+create table if not exists public.payment_requests (
+  id                   uuid primary key default uuid_generate_v4(),
+  gym_id               uuid not null references public.gyms(id) on delete cascade,
+  plan_type            text not null check (plan_type in ('free','trial','pro','enterprise')),
+  plan_name            text not null default '',
+  amount               numeric(10,2) not null check (amount > 0),
+  status               text not null default 'pending' check (status in ('pending','completed','failed')),
+  razorpay_order_id    text default '',
+  razorpay_payment_id  text default '',
+  created_by           uuid references public.profiles(id) on delete set null,
+  created_at           timestamptz not null default now(),
+  updated_at           timestamptz not null default now()
+);
+
+create index if not exists idx_payment_requests_gym_id on public.payment_requests(gym_id);
+create index if not exists idx_payment_requests_status on public.payment_requests(status);
+
+alter table public.payment_requests enable row level security;
+
+create policy "Payment requests visible to gym users"
+  on public.payment_requests for select
+  using (auth.uid() in (
+    select id from public.profiles where gym_id = payment_requests.gym_id
+  ));
+
+create policy "Public can view payment request by ID"
+  on public.payment_requests for select
+  using (true);
+
+create policy "Gym users can insert payment requests"
+  on public.payment_requests for insert
+  with check (auth.uid() in (
+    select id from public.profiles where gym_id = payment_requests.gym_id
+  ));
+
+create policy "Service role can update payment requests"
+  on public.payment_requests for update
+  using (auth.role() = 'service_role');
+
+-- Auto-update trigger for payment_requests.updated_at
+create or replace function public.handle_payment_requests_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists set_payment_requests_updated_at on public.payment_requests;
+create trigger set_payment_requests_updated_at
+  before update on public.payment_requests
+  for each row execute function public.handle_payment_requests_updated_at();
