@@ -103,29 +103,26 @@ class StaffRepository {
         rethrow;
       }
       if (authRes.user == null) throw Exception('Failed to create auth user');
+
+      // Restore admin session (auth.signUp hijacks it when email confirmation is OFF)
       if (prev != null && authRes.session != null) {
         try {
           if (prev.refreshToken != null && prev.refreshToken!.isNotEmpty) {
             await _client.auth.setSession(prev.refreshToken!, accessToken: prev.accessToken);
           }
-        } catch (_) {
+        } catch (e, stack) {
+          ErrorHandler.logError('StaffRepository.addStaff.sessionRestore', e, stack);
         }
       }
 
-      final profileExists = await _client
-          .from('profiles')
-          .select('id')
-          .eq('id', authRes.user!.id)
-          .maybeSingle();
-      if (profileExists != null) {
-        throw Exception('Email "$email" is already used by another staff member.');
-      }
-
-      filtered['id'] = authRes.user!.id;
-
+      // Auto-profile trigger already created a minimal profile.
+      // Update it with our additional fields (gym_id, role, etc.)
+      filtered.remove('password');
+      filtered.remove('email');
       final response = await _client
           .from('profiles')
-          .insert(filtered)
+          .update(filtered)
+          .eq('id', authRes.user!.id)
           .select()
           .single();
 
