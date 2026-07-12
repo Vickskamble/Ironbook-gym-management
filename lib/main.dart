@@ -169,21 +169,14 @@ class ErrorScreen extends StatelessWidget {
               ),
               if (details != null && !kReleaseMode) ...[
                 const SizedBox(height: 16),
-                ExpansionTile(
-                  title: const Text('Error Details'),
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: SelectableText(
-                        details!,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontFamily: 'monospace',
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                    ),
-                  ],
+                Text(
+                  details!,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontFamily: 'monospace',
+                    color: AppColors.textMuted,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
               ],
               const SizedBox(height: 24),

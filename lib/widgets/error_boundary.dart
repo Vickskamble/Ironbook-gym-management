@@ -133,21 +133,14 @@ class _DefaultErrorWidget extends StatelessWidget {
               ),
               if (!kReleaseMode) ...[
                 const SizedBox(height: 16),
-                ExpansionTile(
-                  title: const Text('Error Details'),
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: SelectableText(
-                        error.toString(),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontFamily: 'monospace',
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                    ),
-                  ],
+                Text(
+                  error.toString(),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontFamily: 'monospace',
+                    color: AppColors.textMuted,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
               ],
               const SizedBox(height: 24),
