@@ -20,6 +20,17 @@ enum AppFeature {
     '/notifications/bulk': AppFeature.bulkNotifications,
   };
 
+  /// Minimum plan tier required for each feature:
+  /// 'pro' = available from Pro upward, 'enterprise' = Enterprise only
+  String get _requiredTier {
+    switch (this) {
+      case AppFeature.inventory:
+        return 'enterprise';
+      default:
+        return 'pro';
+    }
+  }
+
   static AppFeature? fromRoute(String route) {
     for (final e in _routeMap.entries) {
       if (route == e.key || route.startsWith('${e.key}/')) return e.value;
@@ -27,7 +38,11 @@ enum AppFeature {
     return null;
   }
 
-  bool isAvailable(String plan) => plan != 'free';
+  bool isAvailable(String plan) {
+    if (plan == 'enterprise') return true;
+    if (plan == 'pro' || plan == 'trial') return _requiredTier != 'enterprise';
+    return false;
+  }
 
   String get label {
     switch (this) {
@@ -40,9 +55,12 @@ enum AppFeature {
       case AppFeature.bulkNotifications: return 'Bulk Notifications';
     }
   }
+
+  String get requiredPlanLabel => _requiredTier == 'enterprise' ? 'Enterprise' : 'Pro';
 }
 
-void showUpgradeDialog(BuildContext context) {
+void showUpgradeDialog(BuildContext context, {String? plan}) {
+  final requiredPlan = plan ?? 'Pro';
   showDialog(
     context: context,
     builder: (ctx) => AlertDialog(
@@ -52,10 +70,10 @@ void showUpgradeDialog(BuildContext context) {
         side: const BorderSide(color: AppColors.border),
       ),
       title: const Icon(Icons.lock_rounded, color: AppColors.primary, size: 40),
-      content: const Column(
+      content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
+          const Text(
             'Upgrade Required',
             style: TextStyle(
               color: AppColors.textPrimary,
@@ -63,11 +81,11 @@ void showUpgradeDialog(BuildContext context) {
               fontSize: 18,
             ),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
-            'This feature is available on Pro plan and above. Upgrade to unlock.',
+            'This feature is available on the $requiredPlan plan. Upgrade to unlock.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
           ),
         ],
       ),

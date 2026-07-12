@@ -26,6 +26,8 @@ class PaymentService {
     return key.isNotEmpty && key != 'your_razorpay_key_id';
   }
 
+  bool get _hasValidConfig => isAvailable;
+
   void initialize() {
     if (_initialized) return;
     _initialized = true;
@@ -62,8 +64,8 @@ class PaymentService {
     required String description,
     required BuildContext context,
   }) async {
-    if (!isAvailable) {
-      return PaymentResult(success: true, paymentId: 'simulated');
+    if (!_hasValidConfig) {
+      throw Exception('Payment gateway not configured. Contact support.');
     }
 
     initialize();

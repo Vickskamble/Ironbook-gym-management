@@ -72,5 +72,18 @@
 		<string>IronBook needs camera access to scan QR codes for attendance and capture profile photos.</string>
 		<key>NSPhotoLibraryUsageDescription</key>
 		<string>IronBook needs photo library access to upload profile photos.</string>
+		<key>CFBundleURLTypes</key>
+		<array>
+			<dict>
+				<key>CFBundleTypeRole</key>
+				<string>Editor</string>
+				<key>CFBundleURLName</key>
+				<string>com.ironbook.app</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>com.ironbook.app</string>
+				</array>
+			</dict>
+		</array>
 	</dict>
 </plist>

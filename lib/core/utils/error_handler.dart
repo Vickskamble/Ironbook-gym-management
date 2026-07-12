@@ -1,5 +1,6 @@
 import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 class DebugLog {
   final DateTime timestamp;
@@ -69,7 +70,17 @@ class ErrorHandler {
       stackTrace: stackStr,
     ));
 
-    if (kReleaseMode) return;
+    // Send to Sentry in production
+    if (kReleaseMode) {
+      try {
+        Sentry.captureException(
+          error,
+          stackTrace: stack,
+          hint: Hint.withMap({'source': source}),
+        );
+      } catch (_) {}
+      return;
+    }
 
     final formatted = '''
 ═══════════════════════════════════════════

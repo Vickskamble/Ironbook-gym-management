@@ -8,6 +8,7 @@ import '../../models/member_model.dart';
 import '../../models/plan_model.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/primary_button.dart';
+import '../../core/utils/error_handler.dart';
 import '../../core/utils/validators.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/constants/app_colors.dart';
@@ -54,7 +55,9 @@ class _AddPaymentScreenState extends ConsumerState<AddPaymentScreen> {
       _members = (membersRes as List)
           .map((json) => MemberModel.fromJson(json))
           .toList();
-    } catch (_) {}
+    } catch (e, stack) {
+      ErrorHandler.logError('AddPaymentScreen._loadData.members', e, stack);
+    }
 
     try {
       final plansRes = await Supabase.instance.client
@@ -65,7 +68,9 @@ class _AddPaymentScreenState extends ConsumerState<AddPaymentScreen> {
       _plans = (plansRes as List)
           .map((json) => PlanModel.fromJson(json))
           .toList();
-    } catch (_) {}
+    } catch (e, stack) {
+      ErrorHandler.logError('AddPaymentScreen._loadData.plans', e, stack);
+    }
 
     if (mounted) {
       setState(() {

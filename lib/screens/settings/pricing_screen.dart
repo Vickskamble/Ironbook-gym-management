@@ -23,7 +23,8 @@ class PricingScreen extends ConsumerStatefulWidget {
 
 class _PricingScreenState extends ConsumerState<PricingScreen> {
   String? _upgradingPlan;
-  final bool _showFreeBanner = false;
+  final bool _showFreeBanner = true;
+  bool _isAnnual = false;
   RealtimeChannel? _realtimeChannel;
 
   static const _websiteBaseUrl = 'https://www.brilliants.in';
@@ -181,6 +182,9 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
                       ],
                     ),
                   ),
+                  const SizedBox(height: 20),
+                  _buildBillingToggle(),
+                  const SizedBox(height: 20),
                   ...SubscriptionService.tiers
                       .where((t) => t.id != 'free')
                       .map(
@@ -196,6 +200,8 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
                           ),
                         ),
                       ),
+                  const SizedBox(height: 32),
+                  _buildTrustFooter(),
                   const SizedBox(height: 24),
                 ],
               ),
@@ -358,18 +364,33 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
     required VoidCallback? onUpgrade,
   }) {
     final isFree = tier.id == 'free';
-    final priceDisplay = tier.price == 0
+    final useAnnual = _isAnnual && tier.annualPrice > 0;
+    final displayPrice = useAnnual ? tier.annualPrice : tier.price;
+    final displayPeriod = useAnnual ? tier.annualPeriod : tier.period;
+    final priceDisplay = displayPrice == 0
         ? 'Free'
-        : '\u20B9${_formatPrice(tier.price)}';
+        : '\u20B9${_formatPrice(displayPrice.toDouble())}';
+
+    final savingsPercent = tier.annualPrice > 0 && tier.price > 0
+        ? ((1 - (tier.annualPrice / (tier.price * 12))) * 100).round()
+        : 0;
 
     return GlassContainer(
-      borderColor: isCurrent ? AppColors.primary.withValues(alpha: 0.3) : null,
+      borderColor: isCurrent
+          ? AppColors.primary.withValues(alpha: 0.3)
+          : tier.isPopular
+              ? AppColors.primary.withValues(alpha: 0.5)
+              : null,
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
+              if (tier.isPopular && !isCurrent) ...[
+                _buildPopularBadge(),
+                const SizedBox(width: 10),
+              ],
               Text(
                 tier.name,
                 style: const TextStyle(
@@ -417,11 +438,11 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
                   color: AppColors.primary,
                 ),
               ),
-              if (tier.period.isNotEmpty)
+              if (displayPeriod.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4, left: 2),
                   child: Text(
-                    tier.period,
+                    displayPeriod,
                     style: const TextStyle(
                       fontSize: 14,
                       color: AppColors.textSecondary,
@@ -430,6 +451,23 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
                 ),
             ],
           ),
+          if (useAnnual && savingsPercent > 0) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(Icons.savings_rounded, size: 14, color: AppColors.success),
+                const SizedBox(width: 4),
+                Text(
+                  'Save $savingsPercent% with annual billing',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.success,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 22),
           const Divider(color: AppColors.border, height: 1),
           const SizedBox(height: 18),
@@ -501,6 +539,160 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
             ),
         ],
       ),
+    );
+  }
+
+  Widget _buildPopularBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppColors.primary, Color(0xFF7C3AED)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.star_rounded, size: 12, color: Colors.white),
+          SizedBox(width: 4),
+          Text(
+            'Most Popular',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBillingToggle() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.surface2,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _isAnnual = false),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: !_isAnnual ? AppColors.primary : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  'Monthly',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: !_isAnnual ? Colors.white : AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _isAnnual = true),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: _isAnnual ? AppColors.primary : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Annual',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: _isAnnual ? Colors.white : AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'Save 2',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.success,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTrustFooter() {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _trustItem(Icons.lock_rounded, 'Secure Payment'),
+            const SizedBox(width: 24),
+            _trustItem(Icons.replay_rounded, '7-Day Refund'),
+            const SizedBox(width: 24),
+            _trustItem(Icons.headset_mic_rounded, 'Priority Support'),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Switch or cancel anytime. No hidden charges.',
+          style: TextStyle(
+            fontSize: 12,
+            color: AppColors.textSecondary.withValues(alpha: 0.7),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _trustItem(IconData icon, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: AppColors.textSecondary),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 

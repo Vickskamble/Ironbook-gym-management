@@ -65,6 +65,13 @@ migrate_working_dir/
 
 # Environment files
 .env
+.env.prod
+.env.dev
+
+# Android keystore and signing config
+**/android/key.properties
+**/*.jks
+**/*.keystore
 
 # Supabase temp files
 supabase/.temp/

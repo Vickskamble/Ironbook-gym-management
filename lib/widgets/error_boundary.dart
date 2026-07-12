@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ironbook/core/constants/app_colors.dart';
@@ -130,23 +131,25 @@ class _DefaultErrorWidget extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 16),
-              ExpansionTile(
-                title: const Text('Error Details'),
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: SelectableText(
-                      error.toString(),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontFamily: 'monospace',
-                        color: AppColors.textMuted,
+              if (!kReleaseMode) ...[
+                const SizedBox(height: 16),
+                ExpansionTile(
+                  title: const Text('Error Details'),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: SelectableText(
+                        error.toString(),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontFamily: 'monospace',
+                          color: AppColors.textMuted,
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 24),
               ElevatedButton.icon(
                 onPressed: onRetry,

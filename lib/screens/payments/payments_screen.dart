@@ -94,20 +94,23 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                   final now = DateTime.now();
                   final searchText = _searchController.text.toLowerCase();
 
-                  final filtered = payments.where((p) {
-                    final matchesSearch = searchText.isEmpty ||
-                        (p.memberName ?? '').toLowerCase().contains(searchText) ||
-                        (p.planName ?? '').toLowerCase().contains(searchText) ||
-                        p.method.toLowerCase().contains(searchText);
-                    final matchesMethod = _methodFilter == 'All' || p.method == _methodFilter;
-                    return matchesSearch && matchesMethod;
-                  }).toList();
-
                   final thisMonthPayments = payments
                       .where((p) => p.paidAt.month == now.month && p.paidAt.year == now.year)
                       .toList();
                   final monthlyTotal =
                       thisMonthPayments.fold<double>(0, (sum, p) => sum + p.finalAmount);
+
+                  final filtered = payments.where((p) {
+                    final matchesSearch = searchText.isEmpty ||
+                        (p.memberName ?? '').toLowerCase().contains(searchText) ||
+                        (p.planName ?? '').toLowerCase().contains(searchText) ||
+                        p.method.toLowerCase().contains(searchText);
+                    final matchesMethod = _methodFilter == 'All' ||
+                        (_methodFilter == 'This Month'
+                            ? (p.paidAt.month == now.month && p.paidAt.year == now.year)
+                            : p.method == _methodFilter);
+                    return matchesSearch && matchesMethod;
+                  }).toList();
 
                   final cashCount = payments.where((p) => p.method == 'Cash').length;
                   final upiCount = payments.where((p) => p.method == 'UPI').length;
@@ -200,10 +203,17 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
   Widget _buildSummaryCard(double total, int count) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF10B981).withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF10B981).withValues(alpha: 0.12),
+            const Color(0xFF059669).withValues(alpha: 0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.2)),
       ),
       child: Row(
@@ -212,21 +222,55 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Collected This Month',
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-                const SizedBox(height: 6),
-                Text('Rs${total.toStringAsFixed(0)}',
-                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Color(0xFF10B981))),
-                const SizedBox(height: 2),
-                Text('$count transaction${count == 1 ? '' : 's'}',
-                    style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.trending_up_rounded,
+                          size: 16, color: Color(0xFF10B981)),
+                    ),
+                    const SizedBox(width: 8),
+                    Text('This Month',
+                        style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text('\u20B9${_formatAmount(total)}',
+                    style: const TextStyle(
+                        fontSize: 30, fontWeight: FontWeight.w900, color: Color(0xFF10B981))),
+                const SizedBox(height: 4),
+                Text('$count payment${count == 1 ? '' : 's'} collected',
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
               ],
             ),
           ),
-          Icon(Icons.account_balance_wallet_rounded, size: 36, color: const Color(0xFF10B981).withValues(alpha: 0.5)),
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: const Color(0xFF10B981).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(Icons.account_balance_wallet_rounded,
+                size: 24, color: Color(0xFF10B981)),
+          ),
         ],
       ),
     );
+  }
+
+  String _formatAmount(double amount) {
+    if (amount >= 100000) {
+      return '${(amount / 100000).toStringAsFixed(1)}L';
+    }
+    if (amount >= 1000) {
+      return '${(amount / 1000).toStringAsFixed(1)}K';
+    }
+    return amount.toStringAsFixed(0);
   }
 
   Widget _buildFilterChip(String label, String value) {
@@ -301,7 +345,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          Text('Rs${p.finalAmount.toStringAsFixed(0)}',
+                          Text('\u20B9${p.finalAmount.toStringAsFixed(0)}',
                               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF10B981))),
                           const SizedBox(width: 8),
                           Container(
