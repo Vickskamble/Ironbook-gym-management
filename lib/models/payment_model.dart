@@ -13,7 +13,7 @@ class PaymentModel {
   final String? transactionId;
   final String? note;
   final DateTime? nextDueDate;
-  final String createdBy;
+  final String? createdBy;
   final DateTime createdAt;
 
   PaymentModel({
@@ -31,7 +31,7 @@ class PaymentModel {
     this.transactionId,
     this.note,
     this.nextDueDate,
-    required this.createdBy,
+    this.createdBy,
     required this.createdAt,
   });
 
@@ -53,7 +53,7 @@ class PaymentModel {
       nextDueDate: json['next_due_date'] != null
           ? DateTime.parse(json['next_due_date'] as String)
           : null,
-      createdBy: (json['created_by'] as String?) ?? '',
+      createdBy: json['created_by'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
@@ -116,4 +116,5 @@ class PaymentModel {
       createdAt: createdAt ?? this.createdAt,
     );
   }
+
 }

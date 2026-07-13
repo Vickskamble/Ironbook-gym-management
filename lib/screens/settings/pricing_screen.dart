@@ -2,8 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/gym_provider.dart';
 import '../../models/gym_model.dart';
@@ -26,11 +26,48 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
   final bool _showFreeBanner = true;
   bool _isAnnual = false;
   RealtimeChannel? _realtimeChannel;
+  Razorpay? _razorpay;
 
-  static const _websiteBaseUrl = 'https://www.brilliants.in';
+  @override
+  void initState() {
+    super.initState();
+    _initRazorpay();
+  }
+
+  void _initRazorpay() {
+    _razorpay = Razorpay();
+    _razorpay!.on(Razorpay.EVENT_PAYMENT_SUCCESS, _onPaymentSuccess);
+    _razorpay!.on(Razorpay.EVENT_PAYMENT_ERROR, _onPaymentError);
+  }
+
+  void _onPaymentSuccess(PaymentSuccessResponse response) {
+    ErrorHandler.logInfo('PricingScreen', 'Payment success: ${response.paymentId}');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Payment successful! Activating plan...'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    }
+  }
+
+  void _onPaymentError(PaymentFailureResponse response) {
+    ErrorHandler.logError('PricingScreen', response.message, null);
+    if (mounted) {
+      setState(() => _upgradingPlan = null);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Payment failed: ${response.message ?? "Please try again"}'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    }
+  }
 
   @override
   void dispose() {
+    _razorpay?.clear();
     _realtimeChannel?.unsubscribe();
     super.dispose();
   }
@@ -106,23 +143,29 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
 
       _listenForPayment(request['id']);
 
-      final uri = Uri.parse('$_websiteBaseUrl/pay/?request_id=${request['id']}');
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      final response = await Supabase.instance.client.functions.invoke(
+        'handle-payment',
+        body: {
+          'action': 'create-order',
+          'request_id': request['id'],
+        },
+      );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Payment page opened for ${tier.name} plan'),
-            backgroundColor: AppColors.primary,
-          ),
-        );
-      }
+      final orderData = response.data as Map<String, dynamic>;
+      _razorpay!.open({
+        'key': orderData['key_id'],
+        'order_id': orderData['id'],
+        'amount': orderData['amount'],
+        'name': 'IronBook',
+        'description': orderData['description'] ?? '${tier.name} Plan',
+        'theme': {'color': '#6366F1'},
+      });
     } catch (e, stack) {
       ErrorHandler.logError('PricingScreen._initiatePayment', e, stack);
       if (mounted) {
         setState(() => _upgradingPlan = null);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.danger),
+          SnackBar(content: Text('Payment failed: $e'), backgroundColor: AppColors.danger),
         );
       }
     }

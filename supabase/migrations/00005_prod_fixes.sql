@@ -8,6 +8,23 @@ create policy "Users can insert profiles at their gym"
   );
 
 -- ============================================================
+-- Fix: UPDATE policy for profiles — allow owners to update
+-- staff profiles even when gym_id is null (auto-profile trigger
+-- creates profiles without gym_id)
+-- ============================================================
+drop policy if exists "Owners can update staff at their gym" on public.profiles;
+
+create policy "Owners can update staff at their gym"
+  on public.profiles for update
+  using (
+    (gym_id = public.current_user_gym_id() or gym_id is null)
+    and exists (
+      select 1 from public.profiles
+      where id = auth.uid() and role in ('owner', 'superadmin', 'admin')
+    )
+  );
+
+-- ============================================================
 -- Fix: gyms subscription CHECK constraint too restrictive
 -- 'trial' plan exists in code but DB only allows free/pro/enterprise
 -- ============================================================

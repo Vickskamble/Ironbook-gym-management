@@ -21,12 +21,14 @@ serve(async (req) => {
 
   const url = new URL(req.url);
   const path = url.pathname.replace(/\/$/, '');
+  const body = await req.clone().json().catch(() => ({}));
+  const action = body.action || '';
 
   try {
     let res: Response;
-    if (path.endsWith('/create-order')) {
+    if (path.endsWith('/create-order') || action === 'create-order') {
       res = await handleCreateOrder(req);
-    } else if (path.endsWith('/webhook')) {
+    } else if (path.endsWith('/webhook') || action === 'webhook') {
       res = await handleWebhook(req);
     } else {
       res = new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });

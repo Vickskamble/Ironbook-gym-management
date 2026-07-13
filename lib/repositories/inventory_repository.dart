@@ -34,9 +34,10 @@ class InventoryRepository {
       final data = await _client
           .from('inventory')
           .select()
-          .eq('gym_id', gymId)
-          .lte('quantity', _client.rpc('get_low_stock_threshold'));
-      return (data as List).map((e) => InventoryItem.fromJson(e)).toList();
+          .eq('gym_id', gymId);
+      final items = (data as List).map((e) => InventoryItem.fromJson(e)).toList();
+      items.retainWhere((item) => item.quantity <= item.lowStockThreshold);
+      return items;
     } catch (e, stack) {
       ErrorHandler.logError('InventoryRepository.getLowStockItems', e, stack);
       throw Exception('Failed to load low stock items: ${e.toString()}');
@@ -91,12 +92,19 @@ class InventoryRepository {
   Future<InventoryItem> adjustStock(String id, int quantityChange, {String? note}) async {
     ErrorHandler.logStep('InventoryRepository.adjustStock', 'called');
     try {
+      final item = await _client
+          .from('inventory')
+          .select()
+          .eq('id', id)
+          .single();
+      final currentQty = (item['quantity'] as num?)?.toInt() ?? 0;
+      final newQty = (currentQty + quantityChange).clamp(0, 999999);
       final response = await _client
-          .rpc('adjust_inventory_stock', params: {
-            'p_item_id': id,
-            'p_quantity_change': quantityChange,
-            'p_note': note ?? '',
-          });
+          .from('inventory')
+          .update({'quantity': newQty})
+          .eq('id', id)
+          .select()
+          .single();
       return InventoryItem.fromJson(response);
     } catch (e, stack) {
       ErrorHandler.logError('InventoryRepository.adjustStock', e, stack);

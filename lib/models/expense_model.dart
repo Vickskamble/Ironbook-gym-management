@@ -8,7 +8,7 @@ class ExpenseModel {
   final String? paidBy;
   final String? receiptUrl;
   final String? note;
-  final String createdBy;
+  final String? createdBy;
   final DateTime createdAt;
 
   ExpenseModel({
@@ -21,7 +21,7 @@ class ExpenseModel {
     this.paidBy,
     this.receiptUrl,
     this.note,
-    required this.createdBy,
+    this.createdBy,
     required this.createdAt,
   });
 
@@ -36,7 +36,7 @@ class ExpenseModel {
       paidBy: json['paid_by'] as String?,
       receiptUrl: json['receipt_url'] as String?,
       note: json['note'] as String?,
-      createdBy: (json['created_by'] as String?) ?? '',
+      createdBy: json['created_by'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
