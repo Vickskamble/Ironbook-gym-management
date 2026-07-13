@@ -58,7 +58,7 @@ class ExpenseRepository {
   Future<ExpenseModel> addExpense(Map<String, dynamic> data) async {
     ErrorHandler.logStep('ExpenseRepository.addExpense', 'called');
     try {
-      const allowedFields = {'gym_id', 'title', 'amount', 'category', 'note', 'paid_by', 'expense_date', 'receipt_url'};
+      const allowedFields = {'gym_id', 'title', 'amount', 'category', 'note', 'paid_by', 'expense_date', 'receipt_url', 'created_by'};
       final filtered = Map<String, dynamic>.fromEntries(
         data.entries.where((e) => allowedFields.contains(e.key)),
       );
