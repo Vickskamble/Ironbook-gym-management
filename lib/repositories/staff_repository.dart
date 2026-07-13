@@ -87,7 +87,6 @@ class StaffRepository {
         throw Exception('Cannot use your own email for a staff member');
       }
 
-      final prev = _client.auth.currentSession;
       AuthResponse authRes;
       try {
         authRes = await _client.auth.signUp(
@@ -104,27 +103,20 @@ class StaffRepository {
       }
       if (authRes.user == null) throw Exception('Failed to create auth user');
 
-      // Restore admin session (auth.signUp hijacks it when email confirmation is OFF)
-      if (prev != null && authRes.session != null) {
-        try {
-          if (prev.refreshToken != null && prev.refreshToken!.isNotEmpty) {
-            await _client.auth.setSession(prev.refreshToken!, accessToken: prev.accessToken);
-          }
-        } catch (e, stack) {
-          ErrorHandler.logError('StaffRepository.addStaff.sessionRestore', e, stack);
-        }
-      }
-
       // Auto-profile trigger already created a minimal profile.
       // Update it with our additional fields (gym_id, role, etc.)
+      // Use RPC with security definer to bypass RLS (auth.signUp may hijack session)
       filtered.remove('password');
       filtered.remove('email');
-      final response = await _client
-          .from('profiles')
-          .update(filtered)
-          .eq('id', authRes.user!.id)
-          .select()
-          .single();
+      final response = await _client.rpc('update_staff_profile', params: {
+        'p_target_user_id': authRes.user!.id,
+        if (filtered.containsKey('name')) 'p_name': filtered['name'],
+        if (filtered.containsKey('phone')) 'p_phone': filtered['phone'],
+        if (filtered.containsKey('role')) 'p_role': filtered['role'],
+        if (filtered.containsKey('gym_id')) 'p_gym_id': filtered['gym_id'],
+        if (filtered.containsKey('is_active')) 'p_is_active': filtered['is_active'],
+        if (filtered.containsKey('avatar_url')) 'p_avatar_url': filtered['avatar_url'],
+      });
 
       return ProfileModel.fromJson(response);
     } catch (e, stack) {
