@@ -148,13 +148,16 @@ class StaffRepository {
         filtered['avatar_url'] = url;
       }
 
-      final response = await _client
-          .from('profiles')
-          .update(filtered)
-          .eq('gym_id', gymId)
-          .eq('id', id)
-          .select()
-          .single();
+      // Use RPC with security definer to bypass RLS - only admins can update
+      final response = await _client.rpc('update_staff_profile', params: {
+        'p_target_user_id': id,
+        if (filtered.containsKey('name')) 'p_name': filtered['name'],
+        if (filtered.containsKey('phone')) 'p_phone': filtered['phone'],
+        if (filtered.containsKey('email')) 'p_role': filtered['email'], // Email converted to role
+        if (filtered.containsKey('gym_id')) 'p_gym_id': gymId, // Pass current gym
+        'p_is_active': filtered['is_active'] ?? true, // Keep profile active
+        if (filtered.containsKey('avatar_url')) 'p_avatar_url': filtered['avatar_url'],
+      });
 
       return ProfileModel.fromJson(response);
     } catch (e, stack) {

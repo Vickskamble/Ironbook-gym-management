@@ -1,22 +1,25 @@
-import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:razorpay_flutter/razorpay_flutter.dart';
-import 'package:ironbook/core/utils/error_handler.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 import 'package:ironbook/supabase_config.dart';
 
 class PaymentResult {
   final bool success;
   final String? paymentId;
   final String? error;
+  final String? requestId;
+  final String? checkoutUrl;
 
-  PaymentResult({required this.success, this.paymentId, this.error});
+  PaymentResult({
+    required this.success,
+    this.paymentId,
+    this.error,
+    this.requestId,
+    this.checkoutUrl,
+  });
 }
 
 class PaymentService {
-  Razorpay? _razorpay;
-  bool _initialized = false;
-  void Function(PaymentResult)? _onResult;
-
   static final PaymentService _instance = PaymentService._();
   factory PaymentService() => _instance;
   PaymentService._();
@@ -26,85 +29,53 @@ class PaymentService {
     return key.isNotEmpty && key != 'your_razorpay_key_id';
   }
 
-  bool get _hasValidConfig => isAvailable;
-
-  void initialize() {
-    if (_initialized) return;
-    _initialized = true;
-    _razorpay = Razorpay();
-    _razorpay!.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handleSuccess);
-    _razorpay!.on(Razorpay.EVENT_PAYMENT_ERROR, _handleError);
-    _razorpay!.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
-  }
-
-  void _handleSuccess(PaymentSuccessResponse response) {
-    ErrorHandler.logInfo('PaymentService', 'Payment success: ${response.paymentId}');
-    _onResult?.call(PaymentResult(
-      success: true,
-      paymentId: response.paymentId,
-    ));
-    _onResult = null;
-  }
-
-  void _handleError(PaymentFailureResponse response) {
-    ErrorHandler.logError('PaymentService', 'Payment failed: ${response.message}', null);
-    _onResult?.call(PaymentResult(
-      success: false,
-      error: response.message ?? 'Payment failed',
-    ));
-    _onResult = null;
-  }
-
-  void _handleExternalWallet(ExternalWalletResponse response) {
-    ErrorHandler.logInfo('PaymentService', 'External wallet: ${response.walletName}');
-  }
-
-  Future<PaymentResult> processPayment({
+  Future<PaymentResult> createOrder({
+    required String gymId,
+    required String planType,
+    required String planName,
     required double amount,
-    required String description,
-    required BuildContext context,
+    String? createdBy,
   }) async {
-    if (!_hasValidConfig) {
+    if (!isAvailable) {
       throw Exception('Payment gateway not configured. Contact support.');
     }
 
-    initialize();
+    final response = await http.post(
+      Uri.parse('${SupabaseConfig.url}/functions/v1/handle-payment'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${SupabaseConfig.publishableKey}',
+        'apikey': SupabaseConfig.publishableKey,
+      },
+      body: jsonEncode({
+        'action': 'create-payment-link',
+        'gym_id': gymId,
+        'plan_type': planType,
+        'plan_name': planName,
+        'amount': amount,
+        'created_by': createdBy,
+      }),
+    );
 
-    final completer = Completer<PaymentResult>();
-
-    _onResult = (result) {
-      if (!completer.isCompleted) completer.complete(result);
-    };
-
-    try {
-      final options = {
-        'key': SupabaseConfig.razorpayKeyId,
-        'amount': (amount * 100).toInt(),
-        'name': 'IronBook',
-        'description': description,
-        'prefill': {'contact': '', 'email': ''},
-        'theme': {'color': '#6366F1'},
-      };
-
-      _razorpay!.open(options);
-
-      return await completer.future.timeout(
-        const Duration(minutes: 5),
-        onTimeout: () {
-          _onResult = null;
-          return PaymentResult(success: false, error: 'Payment timed out');
-        },
-      );
-    } catch (e, stack) {
-      ErrorHandler.logError('PaymentService.processPayment', e, stack);
-      _onResult = null;
-      return PaymentResult(success: false, error: e.toString());
+    if (response.statusCode != 200) {
+      final error = jsonDecode(response.body)['error'] ?? 'Failed to create order';
+      throw Exception(error.toString());
     }
+
+    final data = jsonDecode(response.body);
+    return PaymentResult(
+      success: true,
+      requestId: data['request_id'],
+      checkoutUrl: data['checkout_url'],
+    );
   }
 
-  void dispose() {
-    _razorpay?.clear();
-    _razorpay = null;
-    _initialized = false;
+  Future<void> openCheckout(String checkoutUrl) async {
+    final uri = Uri.parse(checkoutUrl);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      throw Exception('Could not open checkout page');
+    }
   }
 }

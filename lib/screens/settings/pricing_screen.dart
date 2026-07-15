@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/gym_provider.dart';
@@ -13,6 +12,8 @@ import '../../core/utils/error_handler.dart';
 import '../../widgets/glass_container.dart';
 import '../../widgets/primary_button.dart';
 import '../../core/services/subscription_service.dart';
+import '../../core/services/payment_service.dart';
+import '../../core/services/deep_link_service.dart';
 
 class PricingScreen extends ConsumerStatefulWidget {
   const PricingScreen({super.key});
@@ -26,54 +27,64 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
   final bool _showFreeBanner = true;
   bool _isAnnual = false;
   RealtimeChannel? _realtimeChannel;
-  Razorpay? _razorpay;
+  String? _currentRequestId;
+  String? _currentGymId;
+  String? _currentPlanName;
+  double? _currentAmount;
 
   @override
   void initState() {
     super.initState();
-    _initRazorpay();
+    _initDeepLinkListener();
   }
 
-  void _initRazorpay() {
-    _razorpay = Razorpay();
-    _razorpay!.on(Razorpay.EVENT_PAYMENT_SUCCESS, _onPaymentSuccess);
-    _razorpay!.on(Razorpay.EVENT_PAYMENT_ERROR, _onPaymentError);
-  }
-
-  void _onPaymentSuccess(PaymentSuccessResponse response) {
-    ErrorHandler.logInfo('PricingScreen', 'Payment success: ${response.paymentId}');
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Payment successful! Activating plan...'),
-          backgroundColor: AppColors.success,
-        ),
-      );
-    }
-  }
-
-  void _onPaymentError(PaymentFailureResponse response) {
-    ErrorHandler.logError('PricingScreen', response.message, null);
-    if (mounted) {
-      setState(() => _upgradingPlan = null);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Payment failed: ${response.message ?? "Please try again"}'),
-          backgroundColor: AppColors.danger,
-        ),
-      );
-    }
+  void _initDeepLinkListener() {
+    DeepLinkService().onPaymentResult = (result) {
+      if (result.success && mounted) {
+        setState(() => _upgradingPlan = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Plan activated successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        ref.read(authProvider.notifier).refreshGym();
+      }
+    };
   }
 
   @override
   void dispose() {
-    _razorpay?.clear();
     _realtimeChannel?.unsubscribe();
     super.dispose();
   }
 
-  void _listenForPayment(String requestId) {
+  Future<void> _listenForPayment(String requestId) async {
     _realtimeChannel?.unsubscribe();
+
+    // Check if payment already processed (webhook might have beat us)
+    try {
+      final repo = PaymentRequestRepository(Supabase.instance.client);
+      final existing = await repo.getByGymId(_currentGymId ?? '');
+      final current = existing.firstWhere(
+        (r) => r['id'] == requestId,
+        orElse: () => <String, dynamic>{},
+      );
+      if (current['status'] == 'completed' && mounted) {
+        await ref.read(authProvider.notifier).refreshGym();
+        setState(() {
+          _upgradingPlan = null;
+          _currentRequestId = null;
+          _currentGymId = null;
+          _currentPlanName = null;
+          _currentAmount = null;
+        });
+        return;
+      }
+    } catch (_) {
+      // If check fails, just set up listener as normal
+    }
+
     _realtimeChannel = Supabase.instance.client
         .channel('payment-request-$requestId')
         .onPostgresChanges(
@@ -109,7 +120,13 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
                     TextButton(
                       onPressed: () {
                         Navigator.of(ctx).pop();
-                        setState(() => _upgradingPlan = null);
+                        setState(() {
+                          _upgradingPlan = null;
+                          _currentRequestId = null;
+                          _currentGymId = null;
+                          _currentPlanName = null;
+                          _currentAmount = null;
+                        });
                       },
                       child: const Text('OK', style: TextStyle(color: AppColors.primary)),
                     ),
@@ -133,33 +150,22 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
     setState(() => _upgradingPlan = planName);
 
     try {
-      final repo = PaymentRequestRepository(Supabase.instance.client);
-      final request = await repo.create(
+      final paymentService = PaymentService();
+      final result = await paymentService.createOrder(
         gymId: gymId,
         planType: planName.toLowerCase(),
         planName: tier.name,
         amount: tier.price,
+        createdBy: authState.profile?.id,
       );
 
-      _listenForPayment(request['id']);
+      _currentRequestId = result.requestId;
+      _currentGymId = gymId;
+      _currentPlanName = planName.toLowerCase();
+      _currentAmount = tier.price;
 
-      final response = await Supabase.instance.client.functions.invoke(
-        'handle-payment',
-        body: {
-          'action': 'create-order',
-          'request_id': request['id'],
-        },
-      );
-
-      final orderData = response.data as Map<String, dynamic>;
-      _razorpay!.open({
-        'key': orderData['key_id'],
-        'order_id': orderData['id'],
-        'amount': orderData['amount'],
-        'name': 'IronBook',
-        'description': orderData['description'] ?? '${tier.name} Plan',
-        'theme': {'color': '#6366F1'},
-      });
+      await _listenForPayment(result.requestId!);
+      await paymentService.openCheckout(result.checkoutUrl!);
     } catch (e, stack) {
       ErrorHandler.logError('PricingScreen._initiatePayment', e, stack);
       if (mounted) {

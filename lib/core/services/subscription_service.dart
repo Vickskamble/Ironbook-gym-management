@@ -1,8 +1,8 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../repositories/gym_repository.dart';
+import '../../repositories/payment_request_repository.dart';
 import 'payment_service.dart';
 
 class SubscriptionTier {
@@ -42,13 +42,16 @@ class SubscriptionTier {
 }
 
 final subscriptionServiceProvider = Provider<SubscriptionService>((ref) {
-  return SubscriptionService(GymRepository(Supabase.instance.client));
+  return SubscriptionService();
 });
 
 class SubscriptionService {
   final GymRepository _gymRepository;
+  final PaymentRequestRepository _paymentRequestRepository;
 
-  SubscriptionService(this._gymRepository);
+  SubscriptionService()
+      : _gymRepository = GymRepository(Supabase.instance.client),
+        _paymentRequestRepository = PaymentRequestRepository(Supabase.instance.client);
 
   static const List<SubscriptionTier> tiers = [
     SubscriptionTier(
@@ -211,46 +214,6 @@ class SubscriptionService {
     }
   }
 
-  Future<bool> processPayment({
-    required double amount,
-    required BuildContext context,
-    String description = 'IronBook Subscription',
-  }) async {
-    final service = PaymentService();
-    final result = await service.processPayment(
-      amount: amount,
-      description: description,
-      context: context,
-    );
-    return result.success;
-  }
-
-  Future<void> upgradePlan({
-    required String gymId,
-    required String plan,
-    required BuildContext context,
-  }) async {
-    final tier = _tierMap[plan.toLowerCase()];
-    if (tier == null) throw Exception('Invalid plan: $plan');
-
-    if (tier.price > 0) {
-      final paymentSuccess = await processPayment(
-        amount: tier.price,
-        context: context,
-        description: '$plan Plan - IronBook Subscription',
-      );
-      if (!paymentSuccess) {
-        throw Exception('Payment failed or cancelled.');
-      }
-    }
-
-    await _gymRepository.updateSubscription(
-      gymId,
-      plan.toLowerCase(),
-      tier.price == 0 ? null : DateTime.now().add(const Duration(days: 30)),
-    );
-  }
-
   Future<void> downgradePlan({
     required String gymId,
     required String plan,
@@ -264,5 +227,84 @@ class SubscriptionService {
       plan.toLowerCase(),
       tier.price == 0 ? null : DateTime.now().add(const Duration(days: 30)),
     );
+  }
+
+  Future<Map<String, dynamic>> upgradePlan({
+    required String gymId,
+    required String currentPlan,
+    required String targetPlan,
+    required double amount,
+    required BuildContext context,
+  }) async {
+    final tier = _tierMap[targetPlan.toLowerCase()];
+    if (tier == null) throw Exception('Invalid plan: $targetPlan');
+
+    if (tier.price <= 0) {
+      await _gymRepository.updateSubscription(
+        gymId,
+        targetPlan.toLowerCase(),
+        null,
+      );
+      return {'success': true, 'plan': targetPlan, 'amount': 0};
+    }
+
+    final paymentService = PaymentService();
+    final result = await paymentService.createOrder(
+      gymId: gymId,
+      planType: targetPlan.toLowerCase(),
+      planName: tier.name,
+      amount: amount,
+      createdBy: Supabase.instance.client.auth.currentUser?.id,
+    );
+
+    await paymentService.openCheckout(result.checkoutUrl!);
+
+    return {
+      'success': true,
+      'plan': targetPlan,
+      'amount': amount,
+      'requestId': result.requestId,
+    };
+  }
+
+  Future<Map<String, dynamic>?> getCurrentPendingPaymentRequest(String gymId) async {
+    try {
+      final requests = await _paymentRequestRepository.getByGymId(gymId);
+      final pending = requests.where((r) => r['status'] == 'pending').toList();
+      if (pending.isEmpty) return null;
+      return pending.first;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<bool> completePaymentAndActivatePlan({
+    required String gymId,
+    required String requestId,
+    required String paymentId,
+    required String plan,
+    required double amount,
+  }) async {
+    try {
+      await _paymentRequestRepository.completePayment(
+        requestId: requestId,
+        gymId: gymId,
+        paymentId: paymentId,
+        plan: plan,
+        amount: amount,
+      );
+
+      await _gymRepository.updateSubscription(
+        gymId,
+        plan.toLowerCase(),
+        amount > 0
+            ? DateTime.now().add(const Duration(days: 30))
+            : null,
+      );
+
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 }

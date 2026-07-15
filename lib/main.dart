@@ -9,6 +9,7 @@ import 'core/constants/app_colors.dart';
 import 'core/router/app_router.dart';
 import 'core/utils/error_handler.dart';
 import 'core/services/notification_service.dart';
+import 'core/services/deep_link_service.dart';
 import 'widgets/error_boundary.dart';
 import 'widgets/debug_overlay.dart';
 import 'supabase_config.dart';
@@ -50,6 +51,12 @@ Future<void> _runApp(Result<void> initResult) async {
       ErrorHandler.logStep('_runApp', 'NotificationService initialized');
     } catch (e, stack) {
       ErrorHandler.logError('main.notifications', e, stack);
+    }
+    try {
+      await DeepLinkService().initialize();
+      ErrorHandler.logStep('_runApp', 'DeepLinkService initialized');
+    } catch (e, stack) {
+      ErrorHandler.logError('main.deepLink', e, stack);
     }
   } else {
     ErrorHandler.logError('_runApp', initResult.error, initResult.stackTrace);

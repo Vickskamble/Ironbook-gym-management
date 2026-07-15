@@ -48,20 +48,54 @@ class GymRepository {
   Future<void> updateSubscription(
     String gymId,
     String subscriptionPlan,
-    DateTime? expiresAt,
+    DateTime? subscriptionExpiresAt,
   ) async {
     ErrorHandler.logStep('GymRepository.updateSubscription', 'called');
     try {
       final data = <String, dynamic>{
         'subscription': subscriptionPlan,
       };
-      if (expiresAt != null) {
-        data['subscription_expires_at'] = expiresAt.toIso8601String();
+      if (subscriptionExpiresAt != null) {
+        data['subscription_expires_at'] = subscriptionExpiresAt.toIso8601String();
       }
       await _client.from('gyms').update(data).eq('id', gymId);
     } catch (e, stack) {
       ErrorHandler.logError('GymRepository.updateSubscription', e, stack);
       throw Exception('Failed to update subscription: ${e.toString()}');
+    }
+  }
+
+  Future<String?> getSubscriptionPlan(String gymId) async {
+    ErrorHandler.logStep('GymRepository.getSubscriptionPlan', 'called');
+    try {
+      final response = await _client
+          .from('gyms')
+          .select('subscription')
+          .eq('id', gymId)
+          .single();
+
+      return (response['subscription'] as String?);
+    } catch (e, stack) {
+      ErrorHandler.logError('GymRepository.getSubscriptionPlan', e, stack);
+      return null;
+    }
+  }
+
+  Future<DateTime?> getSubscriptionExpiresAt(String gymId) async {
+    ErrorHandler.logStep('GymRepository.getSubscriptionExpiresAt', 'called');
+    try {
+      final response = await _client
+          .from('gyms')
+          .select('subscription_expires_at')
+          .eq('id', gymId)
+          .single();
+
+      final expiresAtStr = response['subscription_expires_at'] as String?;
+      if (expiresAtStr == null || expiresAtStr.isEmpty) return null;
+      return DateTime.parse(expiresAtStr);
+    } catch (e, stack) {
+      ErrorHandler.logError('GymRepository.getSubscriptionExpiresAt', e, stack);
+      return null;
     }
   }
 
