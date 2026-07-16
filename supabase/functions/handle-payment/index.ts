@@ -8,6 +8,13 @@ const RAZORPAY_KEY_SECRET = Deno.env.get('RAZORPAY_KEY_SECRET')!;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
+const PLAN_PRICES: Record<string, number> = {
+  free: 0,
+  trial: 1,
+  pro: 499,
+  enterprise: 999,
+};
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -48,19 +55,48 @@ serve(async (req) => {
 
 async function handleCreateOrder(req: Request): Promise<Response> {
   const body = await req.clone().json().catch(() => ({}));
-  const { gym_id, plan_type, plan_name, amount, created_by } = body;
+  const { gym_id, plan_type, plan_name, created_by } = body;
 
-  if (!gym_id || !plan_type || !amount) {
-    return new Response(JSON.stringify({ error: 'gym_id, plan_type, and amount are required' }), { status: 400 });
+  if (!gym_id || !plan_type) {
+    return new Response(JSON.stringify({ error: 'gym_id and plan_type are required' }), { status: 400 });
+  }
+
+  const normalizedPlan = plan_type.toLowerCase();
+  const price = PLAN_PRICES[normalizedPlan];
+  if (price === undefined) {
+    return new Response(JSON.stringify({ error: `Invalid plan_type: ${plan_type}` }), { status: 400 });
+  }
+
+  if (price <= 0) {
+    const now = new Date().toISOString();
+    await supabase.from('payment_requests').insert({
+      gym_id,
+      plan_type: normalizedPlan,
+      plan_name: plan_name || normalizedPlan,
+      amount: price,
+      status: 'completed',
+      razorpay_payment_id: 'free_upgrade',
+      created_by: created_by || null,
+      updated_at: now,
+    });
+    await supabase.from('gyms').update({
+      subscription: normalizedPlan,
+      subscription_expires_at: new Date(Date.now() + 365 * 86400000).toISOString(),
+    }).eq('id', gym_id);
+    return new Response(JSON.stringify({
+      success: true,
+      message: 'Free plan activated',
+      checkout_url: null,
+    }), { status: 200 });
   }
 
   const { data: request, error } = await supabase
     .from('payment_requests')
     .insert({
       gym_id,
-      plan_type,
-      plan_name: plan_name || plan_type,
-      amount,
+      plan_type: normalizedPlan,
+      plan_name: plan_name || normalizedPlan,
+      amount: price,
       status: 'pending',
       created_by: created_by || null,
     })
@@ -71,7 +107,7 @@ async function handleCreateOrder(req: Request): Promise<Response> {
     return new Response(JSON.stringify({ error: `Failed to create payment request: ${error?.message}` }), { status: 500 });
   }
 
-  const amountInPaise = Math.round(parseFloat(amount) * 100);
+  const amountInPaise = price * 100;
   const basicAuth = btoa(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`);
 
   const linkRes = await fetch('https://api.razorpay.com/v1/payment_links/', {
@@ -83,10 +119,10 @@ async function handleCreateOrder(req: Request): Promise<Response> {
     body: JSON.stringify({
       amount: amountInPaise,
       currency: 'INR',
-      description: `IronBook ${plan_name || plan_type} Plan`,
+      description: `IronBook ${plan_name || normalizedPlan} Plan`,
       callback_url: `${SUPABASE_URL}/functions/v1/handle-payment/payment-callback`,
       callback_method: 'get',
-      notes: { request_id: request.id, gym_id },
+      notes: { request_id: request.id, gym_id, plan_type: normalizedPlan },
       notify: { sms: false, email: false },
     }),
   });
@@ -117,7 +153,13 @@ async function handlePaymentCallback(url: URL): Promise<Response> {
   const paymentLinkId = url.searchParams.get('razorpay_payment_link_id') || '';
   const signature = url.searchParams.get('razorpay_signature') || '';
 
-  if (!paymentId) {
+  if (!paymentId || !paymentLinkId) {
+    return Response.redirect('ironbook://payment/result?status=failed', 302);
+  }
+
+  const message = `${paymentLinkId}|${paymentId}`;
+  const expectedSig = await sha256(message, RAZORPAY_KEY_SECRET);
+  if (signature !== expectedSig) {
     return Response.redirect('ironbook://payment/result?status=failed', 302);
   }
 
@@ -127,29 +169,31 @@ async function handlePaymentCallback(url: URL): Promise<Response> {
     .eq('razorpay_order_id', paymentLinkId)
     .single();
 
-  if (request && request.status !== 'completed') {
-    const now = new Date().toISOString();
-
-    await supabase
-      .from('payment_requests')
-      .update({
-        status: 'completed',
-        razorpay_payment_id: paymentId,
-        updated_at: now,
-      })
-      .eq('id', request.id);
-
-    const days = request.plan_type === 'trial' ? 7 : 30;
-    const expiresAt = new Date(Date.now() + days * 86400000).toISOString();
-
-    await supabase
-      .from('gyms')
-      .update({
-        subscription: request.plan_type,
-        subscription_expires_at: expiresAt,
-      })
-      .eq('id', request.gym_id);
+  if (!request || request.status === 'completed') {
+    return Response.redirect('ironbook://payment/result?status=success' + (paymentId ? '&payment_id=' + paymentId : ''), 302);
   }
+
+  const now = new Date().toISOString();
+
+  await supabase
+    .from('payment_requests')
+    .update({
+      status: 'completed',
+      razorpay_payment_id: paymentId,
+      updated_at: now,
+    })
+    .eq('id', request.id);
+
+  const days = request.plan_type === 'trial' ? 7 : 30;
+  const expiresAt = new Date(Date.now() + days * 86400000).toISOString();
+
+  await supabase
+    .from('gyms')
+    .update({
+      subscription: request.plan_type,
+      subscription_expires_at: expiresAt,
+    })
+    .eq('id', request.gym_id);
 
   return Response.redirect(
     'ironbook://payment/result?status=success' + (paymentId ? '&payment_id=' + paymentId : ''),

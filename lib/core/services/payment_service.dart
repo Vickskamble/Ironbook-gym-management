@@ -33,7 +33,6 @@ class PaymentService {
     required String gymId,
     required String planType,
     required String planName,
-    required double amount,
     String? createdBy,
   }) async {
     if (!isAvailable) {
@@ -52,7 +51,6 @@ class PaymentService {
         'gym_id': gymId,
         'plan_type': planType,
         'plan_name': planName,
-        'amount': amount,
         'created_by': createdBy,
       }),
     );

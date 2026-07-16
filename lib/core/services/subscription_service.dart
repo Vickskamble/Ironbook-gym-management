@@ -233,7 +233,6 @@ class SubscriptionService {
     required String gymId,
     required String currentPlan,
     required String targetPlan,
-    required double amount,
     required BuildContext context,
   }) async {
     final tier = _tierMap[targetPlan.toLowerCase()];
@@ -245,7 +244,7 @@ class SubscriptionService {
         targetPlan.toLowerCase(),
         null,
       );
-      return {'success': true, 'plan': targetPlan, 'amount': 0};
+      return {'success': true, 'plan': targetPlan};
     }
 
     final paymentService = PaymentService();
@@ -253,7 +252,6 @@ class SubscriptionService {
       gymId: gymId,
       planType: targetPlan.toLowerCase(),
       planName: tier.name,
-      amount: amount,
       createdBy: Supabase.instance.client.auth.currentUser?.id,
     );
 
@@ -262,7 +260,6 @@ class SubscriptionService {
     return {
       'success': true,
       'plan': targetPlan,
-      'amount': amount,
       'requestId': result.requestId,
     };
   }

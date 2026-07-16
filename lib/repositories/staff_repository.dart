@@ -132,7 +132,7 @@ class StaffRepository {
   ) async {
     ErrorHandler.logStep('StaffRepository.updateStaff', 'called');
     try {
-      const allowedFields = {'name', 'phone', 'email', 'avatar_url'};
+      const allowedFields = {'name', 'phone', 'email', 'avatar_url', 'role', 'is_active'};
       final filtered = Map<String, dynamic>.fromEntries(
         data.entries.where((e) => allowedFields.contains(e.key)),
       );
@@ -153,9 +153,9 @@ class StaffRepository {
         'p_target_user_id': id,
         if (filtered.containsKey('name')) 'p_name': filtered['name'],
         if (filtered.containsKey('phone')) 'p_phone': filtered['phone'],
-        if (filtered.containsKey('email')) 'p_role': filtered['email'], // Email converted to role
-        if (filtered.containsKey('gym_id')) 'p_gym_id': gymId, // Pass current gym
-        'p_is_active': filtered['is_active'] ?? true, // Keep profile active
+        if (filtered.containsKey('role')) 'p_role': filtered['role'],
+        if (filtered.containsKey('gym_id')) 'p_gym_id': gymId,
+        'p_is_active': filtered['is_active'] ?? true,
         if (filtered.containsKey('avatar_url')) 'p_avatar_url': filtered['avatar_url'],
       });
 

@@ -18,7 +18,7 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
   final _searchController = TextEditingController();
   String _roleFilter = 'All';
 
-  final List<String> _roles = ['All', 'Trainer', 'Receptionist', 'Cleaner', 'Manager', 'Other'];
+  final List<String> _roles = ['All', 'trainer', 'staff', 'admin'];
 
   @override
   void dispose() {
@@ -188,7 +188,7 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
           borderRadius: BorderRadius.circular(99),
           border: Border.all(color: selected ? AppColors.primary : AppColors.border),
         ),
-        child: Text(role,
+        child: Text(role == 'All' ? 'All' : role[0].toUpperCase() + role.substring(1),
             style: TextStyle(
                 color: selected ? Colors.white : AppColors.textSecondary,
                 fontSize: 11,
@@ -200,9 +200,8 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
   Color _roleColor(String role) {
     switch (role.toLowerCase()) {
       case 'trainer': return AppColors.primary;
-      case 'receptionist': return AppColors.info;
-      case 'cleaner': return AppColors.success;
-      case 'manager': return AppColors.accent;
+      case 'admin': return AppColors.accent;
+      case 'staff': return AppColors.info;
       default: return AppColors.textMuted;
     }
   }

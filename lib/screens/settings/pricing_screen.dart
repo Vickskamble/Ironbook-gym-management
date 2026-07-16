@@ -14,6 +14,7 @@ import '../../widgets/primary_button.dart';
 import '../../core/services/subscription_service.dart';
 import '../../core/services/payment_service.dart';
 import '../../core/services/deep_link_service.dart';
+import '../../widgets/payment_summary_sheet.dart';
 
 class PricingScreen extends ConsumerStatefulWidget {
   const PricingScreen({super.key});
@@ -155,7 +156,6 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
         gymId: gymId,
         planType: planName.toLowerCase(),
         planName: tier.name,
-        amount: tier.price,
         createdBy: authState.profile?.id,
       );
 
@@ -836,7 +836,20 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
           ref.invalidate(authProvider);
         }
       } else {
-        await _initiatePayment(planName);
+        final newTier = SubscriptionService.getTier(planName);
+        final currentTier = SubscriptionService.getTier(gym.subscription);
+        if (newTier == null || currentTier == null) {
+          await _initiatePayment(planName);
+          return;
+        }
+        if (!mounted) return;
+        await PaymentSummarySheet.show(
+          context: context,
+          currentTier: currentTier,
+          newTier: newTier,
+          currentPlan: gym.subscription,
+          onProceed: () => _initiatePayment(planName),
+        );
       }
     } catch (e) {
       if (mounted) {

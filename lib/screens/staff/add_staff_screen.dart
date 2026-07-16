@@ -10,6 +10,8 @@ import '../../widgets/glass_container.dart';
 import '../../widgets/primary_button.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../core/utils/validators.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class AddStaffScreen extends ConsumerStatefulWidget {
   const AddStaffScreen({super.key});
@@ -40,9 +42,11 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
   }
 
   Future<void> _pickPhoto() async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Photo picker - select from gallery or camera')),
-    );
+    final picker = ImagePicker();
+    final file = await picker.pickImage(source: ImageSource.gallery, maxWidth: 512, maxHeight: 512);
+    if (file != null) {
+      setState(() => _profilePicPath = file.path);
+    }
   }
 
   Future<void> _submit() async {
@@ -130,7 +134,7 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
                           child: _profilePicPath != null
                               ? ClipRRect(
                                   borderRadius: BorderRadius.circular(20),
-                                  child: Image.asset(_profilePicPath!, fit: BoxFit.cover),
+                                  child: Image.file(File(_profilePicPath!), fit: BoxFit.cover),
                                 )
                               : Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -164,15 +168,10 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
                     const SizedBox(height: 16),
                     CustomTextField(
                       controller: _emailController,
-                      label: 'Email (optional)',
-                      hintText: 'Enter email',
+                      label: 'Email',
+                      hintText: 'Enter email (used for login)',
                       keyboardType: TextInputType.emailAddress,
-                      validator: (value) {
-                        if (value != null && value.isNotEmpty) {
-                          return Validators.validateEmail(value);
-                        }
-                        return null;
-                      },
+                      validator: Validators.validateEmail,
                     ),
                     const SizedBox(height: 16),
                     CustomTextField(
