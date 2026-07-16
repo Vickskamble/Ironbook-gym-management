@@ -1,7 +1,10 @@
+import 'dart:convert';
 import 'dart:io';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/profile_model.dart';
 import '../core/utils/error_handler.dart';
+import '../supabase_config.dart';
 
 class StaffRepository {
   final SupabaseClient _client;
@@ -48,21 +51,15 @@ class StaffRepository {
   Future<ProfileModel> addStaff(Map<String, dynamic> staff) async {
     ErrorHandler.logStep('StaffRepository.addStaff', 'called');
     try {
-      const allowedFields = {'id', 'name', 'phone', 'email', 'role', 'gym_id', 'avatar_url', 'is_active'};
-      var filtered = Map<String, dynamic>.fromEntries(
-        staff.entries.where((e) => allowedFields.contains(e.key)),
-      );
-
-      final email = filtered['email'] as String?;
+      final email = staff['email'] as String?;
       if (email == null || email.isEmpty) {
         throw Exception('Email is required to create staff login');
       }
-
       if (!_isValidEmail(email)) {
         throw Exception('Invalid email format');
       }
 
-      final phone = filtered['phone'] as String?;
+      final phone = staff['phone'] as String?;
       if (phone != null && phone.isNotEmpty && !_isValidPhone(phone)) {
         throw Exception('Invalid phone number');
       }
@@ -72,14 +69,10 @@ class StaffRepository {
         throw Exception('Password is required to create staff login');
       }
 
-      if (filtered['role'] == 'superadmin') {
-        filtered['role'] = 'staff';
-      }
-
-      final avatarPath = filtered['avatar_url'] as String?;
+      final avatarPath = staff['avatar_url'] as String?;
+      String? avatarUrl;
       if (avatarPath != null && avatarPath.isNotEmpty && !avatarPath.startsWith('http')) {
-        final url = await _uploadAvatar(avatarPath);
-        filtered['avatar_url'] = url;
+        avatarUrl = await _uploadAvatar(avatarPath);
       }
 
       final currentUser = _client.auth.currentUser;
@@ -87,38 +80,36 @@ class StaffRepository {
         throw Exception('Cannot use your own email for a staff member');
       }
 
-      AuthResponse authRes;
-      try {
-        authRes = await _client.auth.signUp(
-          email: email,
-          password: password,
-          data: {'name': filtered['name'], 'role': filtered['role']},
-        );
-      } catch (e) {
-        final msg = e.toString().toLowerCase();
-        if (msg.contains('already registered') || msg.contains('already exists')) {
-          throw Exception('Email "$email" is already registered. Use a different email.');
-        }
-        rethrow;
+      final token = _client.auth.currentSession?.accessToken;
+      if (token == null || token.isEmpty) {
+        throw Exception('Not authenticated. Please log in again.');
       }
-      if (authRes.user == null) throw Exception('Failed to create auth user');
 
-      // Auto-profile trigger already created a minimal profile.
-      // Update it with our additional fields (gym_id, role, etc.)
-      // Use RPC with security definer to bypass RLS (auth.signUp may hijack session)
-      filtered.remove('password');
-      filtered.remove('email');
-      final response = await _client.rpc('update_staff_profile', params: {
-        'p_target_user_id': authRes.user!.id,
-        if (filtered.containsKey('name')) 'p_name': filtered['name'],
-        if (filtered.containsKey('phone')) 'p_phone': filtered['phone'],
-        if (filtered.containsKey('role')) 'p_role': filtered['role'],
-        if (filtered.containsKey('gym_id')) 'p_gym_id': filtered['gym_id'],
-        if (filtered.containsKey('is_active')) 'p_is_active': filtered['is_active'],
-        if (filtered.containsKey('avatar_url')) 'p_avatar_url': filtered['avatar_url'],
-      });
+      final response = await http.post(
+        Uri.parse('${SupabaseConfig.url}/functions/v1/create-staff'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+          'apikey': SupabaseConfig.publishableKey,
+        },
+        body: jsonEncode({
+          'name': staff['name'],
+          'email': email,
+          'password': password,
+          'phone': staff['phone'],
+          'role': staff['role'] == 'superadmin' ? 'staff' : staff['role'],
+          'gym_id': staff['gym_id'],
+          'is_active': staff['is_active'] ?? true,
+          if (avatarUrl != null) 'avatar_url': avatarUrl,
+        }),
+      );
 
-      return ProfileModel.fromJson(response);
+      final body = jsonDecode(response.body);
+      if (response.statusCode != 200) {
+        throw Exception(body['error'] ?? 'Failed to add staff');
+      }
+
+      return ProfileModel.fromJson(body['staff']);
     } catch (e, stack) {
       ErrorHandler.logError('StaffRepository.addStaff', e, stack);
       throw Exception('Failed to add staff: ${e.toString()}');
