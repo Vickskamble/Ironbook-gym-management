@@ -21,17 +21,19 @@ serve(async (req) => {
 
   const url = new URL(req.url);
   const path = url.pathname.replace(/\/$/, '');
+  const bodyAction = await req.clone().json().then((b) => b.action).catch(() => '');
+  const action = url.searchParams.get('action') || bodyAction;
 
   try {
     let res: Response;
 
-    if (path.endsWith('/create-order') || path.endsWith('/create-payment-link') || url.searchParams.get('action') === 'create-order' || url.searchParams.get('action') === 'create-payment-link') {
+    if (path.endsWith('/create-order') || path.endsWith('/create-payment-link') || action === 'create-order' || action === 'create-payment-link') {
       res = await handleCreateOrder(req);
     } else if (path.endsWith('/checkout')) {
       res = await handleCheckoutPage(url);
-    } else if (path.endsWith('/callback') || url.searchParams.get('action') === 'callback') {
+    } else if (path.endsWith('/callback') || action === 'callback') {
       res = await handleDirectCallback(req);
-    } else if (path.endsWith('/webhook') || url.searchParams.get('action') === 'webhook') {
+    } else if (path.endsWith('/webhook') || action === 'webhook') {
       res = await handleWebhook(req);
     } else {
       res = new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });
