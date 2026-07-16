@@ -29,10 +29,8 @@ serve(async (req) => {
 
     if (path.endsWith('/create-order') || path.endsWith('/create-payment-link') || action === 'create-order' || action === 'create-payment-link') {
       res = await handleCreateOrder(req);
-    } else if (path.endsWith('/checkout')) {
-      res = await handleCheckoutPage(url);
-    } else if (path.endsWith('/callback') || action === 'callback') {
-      res = await handleDirectCallback(req);
+    } else if (path.endsWith('/payment-callback')) {
+      res = await handlePaymentCallback(url);
     } else if (path.endsWith('/webhook') || action === 'webhook') {
       res = await handleWebhook(req);
     } else {
@@ -76,7 +74,7 @@ async function handleCreateOrder(req: Request): Promise<Response> {
   const amountInPaise = Math.round(parseFloat(amount) * 100);
   const basicAuth = btoa(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`);
 
-  const orderRes = await fetch('https://api.razorpay.com/v1/orders', {
+  const linkRes = await fetch('https://api.razorpay.com/v1/payment_links/', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -85,182 +83,85 @@ async function handleCreateOrder(req: Request): Promise<Response> {
     body: JSON.stringify({
       amount: amountInPaise,
       currency: 'INR',
-      receipt: request.id,
-      notes: { request_id: request.id },
+      description: `IronBook ${plan_name || plan_type} Plan`,
+      callback_url: `${SUPABASE_URL}/functions/v1/handle-payment/payment-callback`,
+      callback_method: 'get',
+      notes: { request_id: request.id, gym_id },
+      notify: { sms: false, email: false },
     }),
   });
 
-  if (!orderRes.ok) {
-    const errText = await orderRes.text();
+  if (!linkRes.ok) {
+    const errText = await linkRes.text();
     await supabase.from('payment_requests').delete().eq('id', request.id);
     return new Response(JSON.stringify({ error: `Razorpay error: ${errText}` }), { status: 500 });
   }
 
-  const order = await orderRes.json();
+  const link = await linkRes.json();
 
   await supabase
     .from('payment_requests')
-    .update({ razorpay_order_id: order.id })
+    .update({ razorpay_order_id: link.id })
     .eq('id', request.id);
-
-  const checkoutUrl = `${SUPABASE_URL}/functions/v1/handle-payment/checkout?order_id=${order.id}&key_id=${RAZORPAY_KEY_ID}&amount=${amountInPaise}&request_id=${request.id}`;
 
   return new Response(JSON.stringify({
     success: true,
     request_id: request.id,
-    order_id: order.id,
-    key_id: RAZORPAY_KEY_ID,
-    amount: amountInPaise,
-    checkout_url: checkoutUrl,
+    payment_link_id: link.id,
+    checkout_url: link.short_url,
   }), { status: 200 });
 }
 
-async function handleCheckoutPage(url: URL): Promise<Response> {
-  const orderId = url.searchParams.get('order_id') || '';
-  const keyId = url.searchParams.get('key_id') || '';
-  const amount = url.searchParams.get('amount') || '0';
-  const requestId = url.searchParams.get('request_id') || '';
-  const callbackUrl = `${SUPABASE_URL}/functions/v1/handle-payment/callback`;
+async function handlePaymentCallback(url: URL): Promise<Response> {
+  const paymentId = url.searchParams.get('razorpay_payment_id') || '';
+  const paymentLinkId = url.searchParams.get('razorpay_payment_link_id') || '';
+  const signature = url.searchParams.get('razorpay_signature') || '';
 
-  const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Processing Payment - IronBook</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #f8f9fa; }
-    .card { background: white; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,0.1); max-width: 400px; }
-    .spinner { width: 40px; height: 40px; border: 4px solid #e2e8f0; border-top: 4px solid #6366F1; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    h2 { color: #1e293b; margin: 0 0 8px 0; }
-    p { color: #64748b; }
-  </style>
-  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-</head>
-<body>
-  <div class="card">
-    <div class="spinner"></div>
-    <h2>Opening Payment Gateway...</h2>
-    <p>Please complete the payment in the popup.</p>
-  </div>
-  <script>
-    var options = {
-      key: "${keyId}",
-      amount: ${amount},
-      currency: "INR",
-      name: "IronBook",
-      description: "IronBook Subscription",
-      order_id: "${orderId}",
-      handler: function(response) {
-        fetch("${callbackUrl}", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_order_id: response.razorpay_order_id,
-            request_id: "${requestId}"
-          })
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-          document.body.innerHTML = data.html || '<div class="card"><div style="font-size:64px;margin-bottom:16px">✅</div><h2 style="color:#22c55e">Payment Successful!</h2><p>Your IronBook plan has been activated. You can close this tab.</p></div>';
-          if (data.redirect_url) {
-            setTimeout(function() { window.location.href = data.redirect_url; }, 1500);
-          }
-        })
-        .catch(function() {
-          document.body.innerHTML = '<div class="card"><div style="font-size:64px;margin-bottom:16px">✅</div><h2 style="color:#22c55e">Payment Successful!</h2><p>You can close this tab and return to the app.</p><a href="ironbook://payment/result?status=success&request_id=${requestId}" style="display:inline-block;margin-top:20px;padding:12px 32px;background:#6366F1;color:white;text-decoration:none;border-radius:8px;font-weight:600">Return to App</a></div>';
-        });
-      },
-      modal: {
-        ondismiss: function() {
-          document.body.innerHTML = '<div class="card"><div style="font-size:64px;margin-bottom:16px">❌</div><h2 style="color:#ef4444">Payment Cancelled</h2><p>You closed the payment window. Please try again.</p><button onclick="window.close()" style="margin-top:20px;padding:12px 32px;background:#6366F1;color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer">Close</button></div>';
-        }
-      },
-      prefill: {},
-      theme: { color: "#6366F1" }
-    };
-    var rzp = new Razorpay(options);
-    rzp.open();
-  </script>
-</body>
-</html>`;
-
-  return new Response(html, {
-    status: 200,
-    headers: { 'Content-Type': 'text/html' },
-  });
-}
-
-async function handleDirectCallback(req: Request): Promise<Response> {
-  const body = await req.clone().json().catch(() => ({}));
-  const { razorpay_payment_id, razorpay_order_id, request_id } = body;
-
-  if (!razorpay_payment_id || !request_id) {
-    return new Response(JSON.stringify({ error: 'Missing payment_id or request_id' }), { status: 400 });
+  if (!paymentId) {
+    return Response.redirect('ironbook://payment/result?status=failed', 302);
   }
 
   const { data: request } = await supabase
     .from('payment_requests')
     .select('*')
-    .eq('id', request_id)
+    .eq('razorpay_order_id', paymentLinkId)
     .single();
 
-  if (!request) {
-    return new Response(JSON.stringify({ error: 'Payment request not found' }), { status: 404 });
+  if (request && request.status !== 'completed') {
+    const now = new Date().toISOString();
+
+    await supabase
+      .from('payment_requests')
+      .update({
+        status: 'completed',
+        razorpay_payment_id: paymentId,
+        updated_at: now,
+      })
+      .eq('id', request.id);
+
+    const days = request.plan_type === 'trial' ? 7 : 30;
+    const expiresAt = new Date(Date.now() + days * 86400000).toISOString();
+
+    await supabase
+      .from('gyms')
+      .update({
+        subscription: request.plan_type,
+        subscription_expires_at: expiresAt,
+      })
+      .eq('id', request.gym_id);
   }
 
-  if (request.status === 'completed') {
-    return new Response(JSON.stringify({
-      status: 'already_processed',
-      html: successHtml(true),
-      redirect_url: 'ironbook://payment/result?status=success&request_id=' + request_id,
-    }), { status: 200 });
-  }
-
-  const now = new Date().toISOString();
-
-  await supabase
-    .from('payment_requests')
-    .update({
-      status: 'completed',
-      razorpay_payment_id,
-      razorpay_order_id: razorpay_order_id || request.razorpay_order_id,
-      updated_at: now,
-    })
-    .eq('id', request_id);
-
-  const days = request.plan_type === 'trial' ? 7 : 30;
-  const expiresAt = new Date(Date.now() + days * 86400000).toISOString();
-
-  await supabase
-    .from('gyms')
-    .update({
-      subscription: request.plan_type,
-      subscription_expires_at: expiresAt,
-    })
-    .eq('id', request.gym_id);
-
-  return new Response(JSON.stringify({
-    status: 'completed',
-    html: successHtml(true),
-    redirect_url: 'ironbook://payment/result?status=success&request_id=' + request_id,
-  }), { status: 200 });
-}
-
-function successHtml(success: boolean): string {
-  if (success) {
-    return '<div class="card"><div style="font-size:64px;margin-bottom:16px">✅</div><h2 style="color:#22c55e">Payment Successful!</h2><p>Your IronBook plan has been activated. You can close this tab.</p></div>';
-  }
-  return '<div class="card"><div style="font-size:64px;margin-bottom:16px">❌</div><h2 style="color:#ef4444">Payment Failed</h2><p>Something went wrong. Please try again.</p></div>';
+  return Response.redirect(
+    'ironbook://payment/result?status=success' + (paymentId ? '&payment_id=' + paymentId : ''),
+    302,
+  );
 }
 
 async function handleWebhook(req: Request): Promise<Response> {
   const body = await req.text();
   const signature = req.headers.get('x-razorpay-signature') || '';
-
   const expectedSig = await sha256(body, RAZORPAY_KEY_SECRET);
+
   if (signature !== expectedSig) {
     return new Response(JSON.stringify({ error: 'Invalid signature' }), { status: 401 });
   }
@@ -275,7 +176,7 @@ async function handleWebhook(req: Request): Promise<Response> {
   const requestId = payment.notes?.request_id || payment.receipt;
 
   if (!requestId) {
-    return new Response(JSON.stringify({ error: 'No request_id in payment notes' }), { status: 400 });
+    return new Response(JSON.stringify({ error: 'No request_id' }), { status: 400 });
   }
 
   const { data: request } = await supabase
@@ -284,12 +185,8 @@ async function handleWebhook(req: Request): Promise<Response> {
     .eq('id', requestId)
     .single();
 
-  if (!request) {
-    return new Response(JSON.stringify({ error: 'Payment request not found' }), { status: 404 });
-  }
-
-  if (request.status === 'completed') {
-    return new Response(JSON.stringify({ status: 'already processed' }), { status: 200 });
+  if (!request || request.status === 'completed') {
+    return new Response(JSON.stringify({ status: 'already_processed' }), { status: 200 });
   }
 
   const now = new Date().toISOString();
