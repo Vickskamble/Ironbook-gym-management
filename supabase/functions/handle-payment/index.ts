@@ -260,7 +260,7 @@ async function handlePaymentCallback(url: URL): Promise<Response> {
   const days = request.plan_type === 'trial' ? 7 : 30;
   const expiresAt = new Date(Date.now() + days * 86400000).toISOString();
 
-  const { count } = await supabase
+  const { error: updateError, count } = await supabase
     .from('payment_requests')
     .update({
       status: 'completed',
@@ -269,9 +269,18 @@ async function handlePaymentCallback(url: URL): Promise<Response> {
     })
     .eq('id', request.id)
     .eq('status', 'pending')
-    .select('count', { head: true });
+    .select('id', { count: 'exact', head: true });
 
-  if (count === 0) {
+  if (updateError) {
+    console.error('callback update error', updateError);
+    return paymentResultPage(
+      'Payment Failed',
+      'Could not update payment. Please contact support.',
+      'ironbook://payment/result?status=failed',
+    );
+  }
+
+  if (!count || count === 0) {
     console.log('callback race — already processed by webhook');
     return paymentResultPage(
       'Payment Successful',
@@ -280,13 +289,17 @@ async function handlePaymentCallback(url: URL): Promise<Response> {
     );
   }
 
-  await supabase
+  const { error: gymError } = await supabase
     .from('gyms')
     .update({
       subscription: request.plan_type,
       subscription_expires_at: expiresAt,
     })
     .eq('id', request.gym_id);
+
+  if (gymError) {
+    console.error('callback gym update error', gymError);
+  }
 
   console.log('callback success — plan activated', { gym_id: request.gym_id, plan: request.plan_type });
 
@@ -333,7 +346,7 @@ async function handleWebhook(req: Request): Promise<Response> {
   const days = request.plan_type === 'trial' ? 7 : 30;
   const expiresAt = new Date(Date.now() + days * 86400000).toISOString();
 
-  const { count } = await supabase
+  const { error: updateError, count } = await supabase
     .from('payment_requests')
     .update({
       status: 'completed',
@@ -342,9 +355,14 @@ async function handleWebhook(req: Request): Promise<Response> {
     })
     .eq('id', requestId)
     .eq('status', 'pending')
-    .select('count', { head: true });
+    .select('id', { count: 'exact', head: true });
 
-  if (count === 0) {
+  if (updateError) {
+    console.error('webhook update error', updateError);
+    return new Response(JSON.stringify({ error: 'Update failed' }), { status: 500 });
+  }
+
+  if (!count || count === 0) {
     return new Response(JSON.stringify({ status: 'already_processed' }), { status: 200 });
   }
 

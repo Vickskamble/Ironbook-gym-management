@@ -225,6 +225,7 @@ class AppShell extends ConsumerWidget {
             _sidebarItem(context, Icons.bar_chart_rounded, 'Reports', '/reports', location, plan),
             _sidebarItem(context, Icons.file_upload_rounded, 'Import/Export', '/import-export', location, plan),
             const Spacer(),
+            _sidebarItem(context, Icons.subscriptions_rounded, 'Subscription', '/subscription', location),
             _sidebarItem(context, Icons.settings_rounded, 'Settings', '/settings', location),
             const SizedBox(height: 16),
           ],

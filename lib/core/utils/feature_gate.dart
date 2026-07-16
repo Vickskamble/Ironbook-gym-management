@@ -8,7 +8,8 @@ enum AppFeature {
   notifications,
   importExport,
   qrAttendance,
-  bulkNotifications;
+  bulkNotifications,
+  reports;
 
   static const _routeMap = {
     '/staff': AppFeature.staff,
@@ -17,7 +18,9 @@ enum AppFeature {
     '/import-export': AppFeature.importExport,
     '/notifications': AppFeature.notifications,
     '/attendance/mark': AppFeature.qrAttendance,
+    '/attendance/qr-scanner': AppFeature.qrAttendance,
     '/notifications/bulk': AppFeature.bulkNotifications,
+    '/reports': AppFeature.reports,
   };
 
   /// Minimum plan tier required for each feature:
@@ -53,6 +56,7 @@ enum AppFeature {
       case AppFeature.importExport: return 'Import/Export';
       case AppFeature.qrAttendance: return 'QR Attendance';
       case AppFeature.bulkNotifications: return 'Bulk Notifications';
+      case AppFeature.reports: return 'Reports';
     }
   }
 
