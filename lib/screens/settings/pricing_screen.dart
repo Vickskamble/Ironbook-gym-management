@@ -156,7 +156,6 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
         gymId: gymId,
         planType: planName.toLowerCase(),
         planName: tier.name,
-        createdBy: authState.profile?.id,
       );
 
       _currentRequestId = result.requestId;

@@ -252,7 +252,6 @@ class SubscriptionService {
       gymId: gymId,
       planType: targetPlan.toLowerCase(),
       planName: tier.name,
-      createdBy: Supabase.instance.client.auth.currentUser?.id,
     );
 
     await paymentService.openCheckout(result.checkoutUrl!);

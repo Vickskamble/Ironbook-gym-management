@@ -1,10 +1,14 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const RAZORPAY_KEY_ID = Deno.env.get('RAZORPAY_KEY_ID')!;
-const RAZORPAY_KEY_SECRET = Deno.env.get('RAZORPAY_KEY_SECRET')!;
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+const RAZORPAY_KEY_ID = Deno.env.get('RAZORPAY_KEY_ID');
+const RAZORPAY_KEY_SECRET = Deno.env.get('RAZORPAY_KEY_SECRET');
+
+if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+  throw new Error('Missing required environment variables');
+}
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
@@ -47,18 +51,51 @@ serve(async (req) => {
     Object.entries(corsHeaders).forEach(([k, v]) => res.headers.set(k, v));
     return res;
   } catch (e) {
-    const res = new Response(JSON.stringify({ error: e.message }), { status: 500 });
+    console.error('handle-payment error:', e);
+    const msg = e instanceof Error && e.name === 'AbortError'
+      ? 'Payment provider timed out. Please try again.'
+      : 'Internal server error';
+    const res = new Response(JSON.stringify({ error: msg }), { status: 500 });
     Object.entries(corsHeaders).forEach(([k, v]) => res.headers.set(k, v));
     return res;
   }
 });
 
+async function getAuthUser(req: Request): Promise<{ id: string } | null> {
+  const authHeader = req.headers.get('Authorization') || '';
+  const token = authHeader.replace(/^Bearer\s+/i, '');
+  if (!token) return null;
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  if (error || !user) return null;
+  return { id: user.id };
+}
+
+async function verifyGymAccess(userId: string, gymId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', userId)
+    .eq('gym_id', gymId)
+    .maybeSingle();
+  return !error && !!data;
+}
+
 async function handleCreateOrder(req: Request): Promise<Response> {
+  const authUser = await getAuthUser(req);
+  if (!authUser) {
+    return new Response(JSON.stringify({ error: 'Authentication required' }), { status: 401 });
+  }
+
   const body = await req.clone().json().catch(() => ({}));
-  const { gym_id, plan_type, plan_name, created_by } = body;
+  const { gym_id, plan_type, plan_name } = body;
 
   if (!gym_id || !plan_type) {
     return new Response(JSON.stringify({ error: 'gym_id and plan_type are required' }), { status: 400 });
+  }
+
+  const hasAccess = await verifyGymAccess(authUser.id, gym_id);
+  if (!hasAccess) {
+    return new Response(JSON.stringify({ error: 'Unauthorized: you do not have access to this gym' }), { status: 403 });
   }
 
   const normalizedPlan = plan_type.toLowerCase();
@@ -76,12 +113,12 @@ async function handleCreateOrder(req: Request): Promise<Response> {
       amount: price,
       status: 'completed',
       razorpay_payment_id: 'free_upgrade',
-      created_by: created_by || null,
+      created_by: authUser.id,
       updated_at: now,
     });
     await supabase.from('gyms').update({
       subscription: normalizedPlan,
-      subscription_expires_at: new Date(Date.now() + 365 * 86400000).toISOString(),
+      subscription_expires_at: null,
     }).eq('id', gym_id);
     return new Response(JSON.stringify({
       success: true,
@@ -98,20 +135,24 @@ async function handleCreateOrder(req: Request): Promise<Response> {
       plan_name: plan_name || normalizedPlan,
       amount: price,
       status: 'pending',
-      created_by: created_by || null,
+      created_by: authUser.id,
     })
     .select()
     .single();
 
   if (error || !request) {
-    return new Response(JSON.stringify({ error: `Failed to create payment request: ${error?.message}` }), { status: 500 });
+    return new Response(JSON.stringify({ error: 'Failed to create payment request' }), { status: 500 });
   }
 
   const amountInPaise = price * 100;
   const basicAuth = btoa(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`);
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+
   const linkRes = await fetch('https://api.razorpay.com/v1/payment_links/', {
     method: 'POST',
+    signal: controller.signal,
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Basic ${basicAuth}`,
@@ -126,11 +167,13 @@ async function handleCreateOrder(req: Request): Promise<Response> {
       notify: { sms: false, email: false },
     }),
   });
+  clearTimeout(timeout);
 
   if (!linkRes.ok) {
     const errText = await linkRes.text();
+    console.error('Razorpay error:', errText);
     await supabase.from('payment_requests').delete().eq('id', request.id);
-    return new Response(JSON.stringify({ error: `Razorpay error: ${errText}` }), { status: 500 });
+    return new Response(JSON.stringify({ error: 'Payment provider error. Please try again.' }), { status: 500 });
   }
 
   const link = await linkRes.json();
@@ -174,18 +217,23 @@ async function handlePaymentCallback(url: URL): Promise<Response> {
   }
 
   const now = new Date().toISOString();
+  const days = request.plan_type === 'trial' ? 7 : 30;
+  const expiresAt = new Date(Date.now() + days * 86400000).toISOString();
 
-  await supabase
+  const { count } = await supabase
     .from('payment_requests')
     .update({
       status: 'completed',
       razorpay_payment_id: paymentId,
       updated_at: now,
     })
-    .eq('id', request.id);
+    .eq('id', request.id)
+    .eq('status', 'pending')
+    .select('count', { head: true });
 
-  const days = request.plan_type === 'trial' ? 7 : 30;
-  const expiresAt = new Date(Date.now() + days * 86400000).toISOString();
+  if (count === 0) {
+    return Response.redirect('ironbook://payment/result?status=success' + (paymentId ? '&payment_id=' + paymentId : ''), 302);
+  }
 
   await supabase
     .from('gyms')
@@ -234,18 +282,23 @@ async function handleWebhook(req: Request): Promise<Response> {
   }
 
   const now = new Date().toISOString();
+  const days = request.plan_type === 'trial' ? 7 : 30;
+  const expiresAt = new Date(Date.now() + days * 86400000).toISOString();
 
-  await supabase
+  const { count } = await supabase
     .from('payment_requests')
     .update({
       status: 'completed',
       razorpay_payment_id: paymentId,
       updated_at: now,
     })
-    .eq('id', requestId);
+    .eq('id', requestId)
+    .eq('status', 'pending')
+    .select('count', { head: true });
 
-  const days = request.plan_type === 'trial' ? 7 : 30;
-  const expiresAt = new Date(Date.now() + days * 86400000).toISOString();
+  if (count === 0) {
+    return new Response(JSON.stringify({ status: 'already_processed' }), { status: 200 });
+  }
 
   const { data: gym } = await supabase
     .from('gyms')

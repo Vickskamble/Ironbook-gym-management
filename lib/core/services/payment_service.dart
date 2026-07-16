@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ironbook/supabase_config.dart';
 
 class PaymentResult {
@@ -29,21 +30,27 @@ class PaymentService {
     return key.isNotEmpty && key != 'your_razorpay_key_id';
   }
 
+  String? get _accessToken => Supabase.instance.client.auth.currentSession?.accessToken;
+
   Future<PaymentResult> createOrder({
     required String gymId,
     required String planType,
     required String planName,
-    String? createdBy,
   }) async {
     if (!isAvailable) {
       throw Exception('Payment gateway not configured. Contact support.');
+    }
+
+    final token = _accessToken;
+    if (token == null || token.isEmpty) {
+      throw Exception('Not authenticated. Please log in again.');
     }
 
     final response = await http.post(
       Uri.parse('${SupabaseConfig.url}/functions/v1/handle-payment'),
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${SupabaseConfig.publishableKey}',
+        'Authorization': 'Bearer $token',
         'apikey': SupabaseConfig.publishableKey,
       },
       body: jsonEncode({
@@ -51,12 +58,12 @@ class PaymentService {
         'gym_id': gymId,
         'plan_type': planType,
         'plan_name': planName,
-        'created_by': createdBy,
       }),
     );
 
     if (response.statusCode != 200) {
-      final error = jsonDecode(response.body)['error'] ?? 'Failed to create order';
+      final body = jsonDecode(response.body);
+      final error = body['error'] ?? 'Failed to create order';
       throw Exception(error.toString());
     }
 

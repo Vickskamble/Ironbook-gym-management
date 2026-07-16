@@ -453,7 +453,14 @@ as $$
 declare
   new_gym_id uuid;
   profile_row record;
+  existing_gym_id uuid;
 begin
+  -- Prevent overwriting an already-completed signup
+  select gym_id into existing_gym_id from public.profiles where id = p_user_id;
+  if existing_gym_id is not null then
+    raise exception 'Signup already completed for this user';
+  end if;
+
   update public.profiles
   set name = p_name, phone = p_phone, role = 'owner'
   where id = p_user_id;
