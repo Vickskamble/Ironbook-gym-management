@@ -132,15 +132,15 @@ class AppShell extends ConsumerWidget {
                 decoration: BoxDecoration(color: AppColors.textMuted, borderRadius: BorderRadius.circular(2)),
               ),
               const SizedBox(height: 20),
-              _moreTile(ctx, Icons.inventory_2_rounded, 'Inventory', '/inventory', plan),
-              _moreTile(ctx, Icons.receipt_rounded, 'Expenses', '/expenses', plan),
-              _moreTile(ctx, Icons.bar_chart_rounded, 'Reports', '/reports', plan),
-              _moreTile(ctx, Icons.badge_rounded, 'Staff', '/staff', plan),
-              _moreTile(ctx, Icons.file_upload_rounded, 'Import/Export', '/import-export', plan),
-              _moreTile(ctx, Icons.notifications_rounded, 'Notifications', '/notifications', plan),
-              _moreTile(ctx, Icons.subscriptions_rounded, 'Subscription', '/subscription'),
+              _moreTile(context, ctx, Icons.inventory_2_rounded, 'Inventory', '/inventory', plan),
+              _moreTile(context, ctx, Icons.receipt_rounded, 'Expenses', '/expenses', plan),
+              _moreTile(context, ctx, Icons.bar_chart_rounded, 'Reports', '/reports', plan),
+              _moreTile(context, ctx, Icons.badge_rounded, 'Staff', '/staff', plan),
+              _moreTile(context, ctx, Icons.file_upload_rounded, 'Import/Export', '/import-export', plan),
+              _moreTile(context, ctx, Icons.notifications_rounded, 'Notifications', '/notifications', plan),
+              _moreTile(context, ctx, Icons.subscriptions_rounded, 'Subscription', '/subscription'),
               const Divider(color: AppColors.border, height: 24),
-              _moreTile(ctx, Icons.settings_rounded, 'Settings', '/settings'),
+              _moreTile(context, ctx, Icons.settings_rounded, 'Settings', '/settings'),
               const SizedBox(height: 8),
             ],
           ),
@@ -149,16 +149,21 @@ class AppShell extends ConsumerWidget {
     );
   }
 
-  Widget _moreTile(BuildContext context, IconData icon, String label, String route, [String? plan]) {
+  Widget _moreTile(BuildContext outerContext, BuildContext sheetContext, IconData icon, String label, String route, [String? plan]) {
     final iconColor = _navColors[route] ?? AppColors.primary;
-    final locked = plan != null && !_mayAccess(context, route, plan);
+    final feature = AppFeature.fromRoute(route);
+    final locked = plan != null && feature != null && !feature.isAvailable(plan);
     return ListTile(
       leading: Icon(locked ? Icons.lock_rounded : icon, color: locked ? AppColors.textMuted : iconColor, size: 22),
       title: Text(label, style: TextStyle(color: locked ? AppColors.textMuted : Colors.white, fontWeight: FontWeight.w600)),
       trailing: Icon(locked ? Icons.lock_rounded : Icons.chevron_right_rounded, color: AppColors.textMuted, size: 18),
       onTap: () {
-        Navigator.pop(context);
-        if (!locked || _mayAccess(context, route, plan)) context.go(route);
+        Navigator.pop(sheetContext);
+        if (locked) {
+          showUpgradeDialog(outerContext);
+        } else {
+          outerContext.go(route);
+        }
       },
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     );
@@ -167,9 +172,10 @@ class AppShell extends ConsumerWidget {
   Widget _navItem(BuildContext context, IconData icon, String label, String route, String current, [String? plan]) {
     final active = current == route || current.startsWith('$route/');
     final color = _colorFor(route, current);
-    final locked = plan != null && !_mayAccess(context, route, plan);
+    final feature = AppFeature.fromRoute(route);
+    final locked = plan != null && feature != null && !feature.isAvailable(plan);
     return GestureDetector(
-      onTap: () => locked ? _mayAccess(context, route, plan) : context.go(route),
+      onTap: () => locked ? showUpgradeDialog(context) : context.go(route),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
