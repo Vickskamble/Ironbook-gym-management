@@ -110,7 +110,7 @@ class _StaffDetailScreenState extends ConsumerState<StaffDetailScreen> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Staff terminated')),
                           );
-                          Navigator.pop(context);
+                          context.pop();
                         }
                       }
                     }

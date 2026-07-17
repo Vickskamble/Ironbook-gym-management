@@ -77,7 +77,7 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Staff member added successfully')),
         );
-        Navigator.pop(context);
+        context.pop();
       }
     } catch (e) {
       if (mounted) {

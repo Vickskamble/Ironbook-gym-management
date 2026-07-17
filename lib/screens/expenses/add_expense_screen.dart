@@ -98,7 +98,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Expense added successfully')),
         );
-        Navigator.of(context).pop();
+        context.pop();
       }
     } catch (e) {
       if (mounted) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../constants/app_colors.dart';
 
 enum AppFeature {
@@ -101,7 +102,7 @@ void showUpgradeDialog(BuildContext context, {String? plan}) {
         TextButton(
           onPressed: () {
             Navigator.of(ctx).pop();
-            Navigator.of(context).pushNamed('subscription');
+            context.push('/subscription');
           },
           child: const Text('View Plans', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700)),
         ),
