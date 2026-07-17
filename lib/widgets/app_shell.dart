@@ -117,6 +117,7 @@ class AppShell extends ConsumerWidget {
   void _showMoreSheet(BuildContext context, String plan) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -124,25 +125,27 @@ class AppShell extends ConsumerWidget {
       builder: (ctx) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40, height: 4,
-                decoration: BoxDecoration(color: AppColors.textMuted, borderRadius: BorderRadius.circular(2)),
-              ),
-              const SizedBox(height: 20),
-              _moreTile(context, ctx, Icons.inventory_2_rounded, 'Inventory', '/inventory', plan),
-              _moreTile(context, ctx, Icons.receipt_rounded, 'Expenses', '/expenses', plan),
-              _moreTile(context, ctx, Icons.bar_chart_rounded, 'Reports', '/reports', plan),
-              _moreTile(context, ctx, Icons.badge_rounded, 'Staff', '/staff', plan),
-              _moreTile(context, ctx, Icons.file_upload_rounded, 'Import/Export', '/import-export', plan),
-              _moreTile(context, ctx, Icons.notifications_rounded, 'Notifications', '/notifications', plan),
-              _moreTile(context, ctx, Icons.subscriptions_rounded, 'Subscription', '/subscription'),
-              const Divider(color: AppColors.border, height: 24),
-              _moreTile(context, ctx, Icons.settings_rounded, 'Settings', '/settings'),
-              const SizedBox(height: 8),
-            ],
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(color: AppColors.textMuted, borderRadius: BorderRadius.circular(2)),
+                ),
+                const SizedBox(height: 20),
+                _moreTile(context, ctx, Icons.inventory_2_rounded, 'Inventory', '/inventory', plan),
+                _moreTile(context, ctx, Icons.receipt_rounded, 'Expenses', '/expenses', plan),
+                _moreTile(context, ctx, Icons.bar_chart_rounded, 'Reports', '/reports', plan),
+                _moreTile(context, ctx, Icons.badge_rounded, 'Staff', '/staff', plan),
+                _moreTile(context, ctx, Icons.file_upload_rounded, 'Import/Export', '/import-export', plan),
+                _moreTile(context, ctx, Icons.notifications_rounded, 'Notifications', '/notifications', plan),
+                _moreTile(context, ctx, Icons.subscriptions_rounded, 'Subscription', '/subscription'),
+                const Divider(color: AppColors.border, height: 24),
+                _moreTile(context, ctx, Icons.settings_rounded, 'Settings', '/settings'),
+                const SizedBox(height: 8),
+              ],
+            ),
           ),
         ),
       ),
