@@ -28,10 +28,7 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
   final bool _showFreeBanner = true;
   bool _isAnnual = false;
   RealtimeChannel? _realtimeChannel;
-  String? _currentRequestId;
   String? _currentGymId;
-  String? _currentPlanName;
-  double? _currentAmount;
 
   @override
   void initState() {
@@ -75,10 +72,7 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
         await ref.read(authProvider.notifier).refreshGym();
         setState(() {
           _upgradingPlan = null;
-          _currentRequestId = null;
           _currentGymId = null;
-          _currentPlanName = null;
-          _currentAmount = null;
         });
         return;
       }
@@ -123,10 +117,7 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
                         Navigator.of(ctx).pop();
                         setState(() {
                           _upgradingPlan = null;
-                          _currentRequestId = null;
                           _currentGymId = null;
-                          _currentPlanName = null;
-                          _currentAmount = null;
                         });
                       },
                       child: const Text('OK', style: TextStyle(color: AppColors.primary)),
@@ -158,10 +149,7 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
         planName: tier.name,
       );
 
-      _currentRequestId = result.requestId;
       _currentGymId = gymId;
-      _currentPlanName = planName.toLowerCase();
-      _currentAmount = tier.price;
 
       await _listenForPayment(result.requestId!);
       await paymentService.openCheckout(result.checkoutUrl!);
