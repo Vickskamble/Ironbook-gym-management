@@ -77,10 +77,14 @@ class PaymentService {
 
   Future<void> openCheckout(String checkoutUrl) async {
     final uri = Uri.parse(checkoutUrl);
-    if (await canLaunchUrl(uri)) {
+    try {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      throw Exception('Could not open checkout page');
+    } catch (_) {
+      try {
+        await launchUrl(uri, mode: LaunchMode.inAppWebView);
+      } catch (e) {
+        throw Exception('Could not open checkout page. Please try again.');
+      }
     }
   }
 }
