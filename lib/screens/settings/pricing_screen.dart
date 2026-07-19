@@ -37,7 +37,13 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
   }
 
   void _initDeepLinkListener() {
-    DeepLinkService().onPaymentResult = (result) {
+    final deepLinkService = DeepLinkService();
+    final pending = deepLinkService.consumePendingResult();
+    if (pending != null && pending.success && mounted) {
+      setState(() => _upgradingPlan = null);
+      ref.read(authProvider.notifier).refreshGym();
+    }
+    deepLinkService.onPaymentResult = (result) {
       if (result.success && mounted) {
         setState(() => _upgradingPlan = null);
         ScaffoldMessenger.of(context).showSnackBar(

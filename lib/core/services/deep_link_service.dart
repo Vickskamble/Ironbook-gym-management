@@ -20,6 +20,7 @@ class DeepLinkService {
   AppLinks? _appLinks;
   StreamSubscription<Uri>? _subscription;
   DeepLinkCallback? onPaymentResult;
+  DeepLinkResult? _pendingResult;
 
   Future<void> initialize() async {
     _appLinks = AppLinks();
@@ -41,12 +42,23 @@ class DeepLinkService {
       final status = uri.queryParameters['status'];
       final gymId = uri.queryParameters['gym_id'];
       final requestId = uri.queryParameters['request_id'];
-      onPaymentResult?.call(DeepLinkResult(
+      final result = DeepLinkResult(
         success: status == 'success',
         gymId: gymId,
         requestId: requestId,
-      ));
+      );
+      if (onPaymentResult != null) {
+        onPaymentResult!(result);
+      } else {
+        _pendingResult = result;
+      }
     }
+  }
+
+  DeepLinkResult? consumePendingResult() {
+    final result = _pendingResult;
+    _pendingResult = null;
+    return result;
   }
 
   void dispose() {
