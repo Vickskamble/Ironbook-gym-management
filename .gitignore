@@ -33,6 +33,7 @@ migrate_working_dir/
 /build/
 
 # Android related
+**/*.hprof
 **/android/**/build/
 **/android/**/local.properties
 **/android/**/captures/
