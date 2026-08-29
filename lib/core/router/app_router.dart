@@ -95,7 +95,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           return '/login';
         }
 
-        if (path == '/forgot-password' || path == '/update-password') return '/dashboard';
+        if (path == '/forgot-password') return '/dashboard';
 
         if (path == '/login' || path == '/signup') {
           final redirect = role == 'superadmin' ? '/admin' : '/dashboard';
@@ -108,7 +108,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           return '/dashboard';
         }
 
-        if (authState.gymId == null && path != '/gym-setup') {
+        if (authState.gymId == null && role != 'superadmin' && path != '/gym-setup') {
           ErrorHandler.logStep('Router.redirect', 'No gym set up, redirecting to /gym-setup');
           return '/gym-setup';
         }

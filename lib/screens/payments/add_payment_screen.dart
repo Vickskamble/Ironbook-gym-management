@@ -240,7 +240,7 @@ class _AddPaymentScreenState extends ConsumerState<AddPaymentScreen> {
                           .map((p) => DropdownMenuItem(
                                 value: p,
                                 child: Text(
-                                    '${p.name} - \$${p.price.toStringAsFixed(0)} / ${p.durationDays} days'),
+                                    '${p.name} - ₹${p.price.toStringAsFixed(0)} / ${p.durationDays} days'),
                               ))
                           .toList(),
                       onChanged: _onPlanSelected,

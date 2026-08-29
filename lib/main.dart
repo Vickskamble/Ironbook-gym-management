@@ -13,6 +13,7 @@ import 'core/services/deep_link_service.dart';
 import 'widgets/error_boundary.dart';
 import 'widgets/debug_overlay.dart';
 import 'supabase_config.dart';
+import 'providers/auth_provider.dart';
 import 'providers/locale_provider.dart';
 
 Future<void> main() async {
@@ -100,6 +101,12 @@ class IronBookApp extends ConsumerWidget {
     ErrorHandler.logStep('IronBookApp', 'Building app');
     final router = ref.watch(routerProvider);
     final locale = ref.watch(localeProvider);
+
+    ref.listen<AuthState>(authProvider, (_, authState) {
+      if (NotificationService.isInitialized) {
+        NotificationService.instance.subscribeForCurrentUser();
+      }
+    });
 
     return MaterialApp.router(
       title: AppStrings.appName,

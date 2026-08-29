@@ -30,6 +30,16 @@ class AdminRepository {
       final gyms = await _supabase.from('gyms').select('id');
       final members = await _supabase.from('members').select('id');
 
+      final activeMembers = await _supabase
+          .from('members')
+          .select('id')
+          .eq('status', 'Active');
+
+      final staff = await _supabase
+          .from('profiles')
+          .select('id')
+          .neq('role', 'superadmin');
+
       final newMembersThisMonth = await _supabase
           .from('members')
           .select('id')
@@ -57,6 +67,8 @@ class AdminRepository {
       final result = {
         'totalGyms': (gyms as List).length,
         'totalMembers': (members as List).length,
+        'activeMembers': (activeMembers as List).length,
+        'totalStaff': (staff as List).length,
         'totalRevenue': totalRevenue,
         'thisMonthRevenue': thisMonthRevenue,
         'newMembersThisMonth': (newMembersThisMonth as List).length,

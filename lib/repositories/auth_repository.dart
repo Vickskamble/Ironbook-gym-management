@@ -51,13 +51,17 @@ class AuthRepository {
           .from('profiles')
           .select()
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
+
+      if (profileResponse == null) {
+        throw Exception('Profile not found for this account');
+      }
 
       _loginRateLimiter.reset(email);
       ErrorHandler.logStep('AuthRepository.signIn', 'returning result');
       return ProfileModel.fromJson(profileResponse);
     } catch (e) {
-      if (e is Exception) {
+      if (e is Exception && !e.toString().contains('Profile not found')) {
         _loginRateLimiter.recordAttempt(email);
       }
       rethrow;
@@ -146,12 +150,22 @@ class AuthRepository {
           'p_gym_address': gymAddress,
           'p_gym_type': gymType ?? '',
         });
-        final gymData = await _client
-            .from('gyms')
-            .select()
-            .eq('owner_id', user.id)
-            .single();
-        gym = GymModel.fromJson(gymData);
+        final profileJson = Map<String, dynamic>.from(profileResponse as Map);
+        final gymId = profileJson['gym_id'] as String?;
+        if (gymId == null || gymId.isEmpty) {
+          throw Exception('Gym creation failed. Please contact support.');
+        }
+        final now = DateTime.now();
+        gym = GymModel(
+          id: gymId,
+          name: gymName,
+          address: gymAddress,
+          phone: phone,
+          gymType: gymType,
+          ownerId: user.id,
+          createdAt: now,
+          updatedAt: now,
+        );
       }
 
       final profile = ProfileModel.fromJson({

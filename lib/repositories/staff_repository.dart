@@ -22,6 +22,7 @@ class StaffRepository {
           .from('profiles')
           .select();
       query = query.eq('gym_id', gymId);
+      query = query.eq('is_active', status == 'Active');
       query = query.order('created_at', ascending: false);
 
       if (role != null && role.isNotEmpty) {
@@ -100,7 +101,7 @@ class StaffRepository {
           'role': staff['role'] == 'superadmin' ? 'staff' : staff['role'],
           'gym_id': staff['gym_id'],
           'is_active': staff['is_active'] ?? true,
-          if (avatarUrl != null) 'avatar_url': avatarUrl,
+          'avatar_url': ?avatarUrl,
         }),
       );
 
@@ -145,7 +146,7 @@ class StaffRepository {
         if (filtered.containsKey('name')) 'p_name': filtered['name'],
         if (filtered.containsKey('phone')) 'p_phone': filtered['phone'],
         if (filtered.containsKey('role')) 'p_role': filtered['role'],
-        if (filtered.containsKey('gym_id')) 'p_gym_id': gymId,
+        'p_gym_id': gymId,
         'p_is_active': filtered['is_active'] ?? true,
         if (filtered.containsKey('avatar_url')) 'p_avatar_url': filtered['avatar_url'],
       });

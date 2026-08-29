@@ -13,6 +13,10 @@ final todayAttendanceProvider = FutureProvider.family<List<AttendanceModel>, Str
   return ref.read(attendanceRepositoryProvider).getTodayAttendance(gymId);
 });
 
+final attendanceStatsProvider = FutureProvider.family<Map<String, int>, String>((ref, gymId) {
+  return ref.read(attendanceRepositoryProvider).getAttendanceStats(gymId);
+});
+
 final memberAttendanceProvider = FutureProvider.family<List<AttendanceModel>, ({String gymId, String memberId})>(
   (ref, params) {
     ErrorHandler.logStep('memberAttendanceProvider', 'build', {'gymId': params.gymId, 'memberId': params.memberId});

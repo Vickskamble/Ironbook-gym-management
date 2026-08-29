@@ -19,6 +19,17 @@ class ImportExportRepository {
 
   static const int _maxCsvRows = 5000;
 
+  static const Set<String> _formulaChars = {'=', '+', '-', '@', '%', '|'};
+
+  String _cell(List<String> row, int index, [String fallback = '']) {
+    if (index < 0 || index >= row.length) return fallback;
+    final value = row[index];
+    if (value.length > 1 && value[0] == "'" && _formulaChars.contains(value[1])) {
+      return value.substring(1);
+    }
+    return value;
+  }
+
   bool _isValidPhone(String phone) {
     final clean = phone.replaceAll(RegExp(r'\D'), '');
     return clean.length >= 10 && clean.length <= 15;
@@ -89,8 +100,8 @@ class ImportExportRepository {
         }
 
         try {
-          final name = row[nameIndex];
-          final phone = row[phoneIndex];
+          final name = _cell(row, nameIndex);
+          final phone = _cell(row, phoneIndex);
 
           if (name.isEmpty || phone.isEmpty) {
             skipped++;
@@ -116,14 +127,14 @@ class ImportExportRepository {
             continue;
           }
 
-          final email = emailIndex != -1 ? row[emailIndex] : null;
+          final email = emailIndex != -1 ? _cell(row, emailIndex) : null;
           if (email != null && email.isNotEmpty && !_isValidEmail(email)) {
             errors.add('Row ${i + 1}: Invalid email "$email"');
             skipped++;
             continue;
           }
 
-          final ageStr = ageIndex != -1 ? row[ageIndex] : null;
+          final ageStr = ageIndex != -1 ? _cell(row, ageIndex) : null;
           int? age;
           if (ageStr != null && ageStr.isNotEmpty) {
             age = int.tryParse(ageStr);
@@ -138,9 +149,9 @@ class ImportExportRepository {
           final today = DateTime(now.year, now.month, now.day);
 
           String joinDate;
-          if (joinDateIndex != -1 && row[joinDateIndex].isNotEmpty) {
+          if (joinDateIndex != -1 && _cell(row, joinDateIndex).isNotEmpty) {
             try {
-              final parsed = DateTime.parse(row[joinDateIndex]);
+              final parsed = DateTime.parse(_cell(row, joinDateIndex));
               joinDate = parsed.toIso8601String().split('T')[0];
             } catch (_) {
               joinDate = today.toIso8601String().split('T')[0];
@@ -150,21 +161,21 @@ class ImportExportRepository {
           }
 
           String membershipStart = joinDate;
-          if (membershipStartIndex != -1 && row[membershipStartIndex].isNotEmpty) {
+          if (membershipStartIndex != -1 && _cell(row, membershipStartIndex).isNotEmpty) {
             try {
-              final parsed = DateTime.parse(row[membershipStartIndex]);
+              final parsed = DateTime.parse(_cell(row, membershipStartIndex));
               membershipStart = parsed.toIso8601String().split('T')[0];
             } catch (_) {}
           }
 
           String? membershipEnd;
           int membershipDays = 30;
-          if (membershipDaysIndex != -1 && row[membershipDaysIndex].isNotEmpty) {
-            membershipDays = int.tryParse(row[membershipDaysIndex]) ?? 30;
+          if (membershipDaysIndex != -1 && _cell(row, membershipDaysIndex).isNotEmpty) {
+            membershipDays = int.tryParse(_cell(row, membershipDaysIndex)) ?? 30;
           }
-          if (membershipEndIndex != -1 && row[membershipEndIndex].isNotEmpty) {
+          if (membershipEndIndex != -1 && _cell(row, membershipEndIndex).isNotEmpty) {
             try {
-              final parsed = DateTime.parse(row[membershipEndIndex]);
+              final parsed = DateTime.parse(_cell(row, membershipEndIndex));
               membershipEnd = parsed.toIso8601String().split('T')[0];
             } catch (_) {
               final start = DateTime.parse(membershipStart);
@@ -175,21 +186,21 @@ class ImportExportRepository {
             membershipEnd = start.add(Duration(days: membershipDays)).toIso8601String().split('T')[0];
           }
 
-          final status = statusIndex != -1 && row[statusIndex].isNotEmpty ? row[statusIndex] : 'Active';
+          final status = statusIndex != -1 && _cell(row, statusIndex).isNotEmpty ? _cell(row, statusIndex) : 'Active';
 
           String? bloodGroup;
-          if (bloodGroupIndex != -1 && row[bloodGroupIndex].isNotEmpty) {
-            bloodGroup = row[bloodGroupIndex];
+          if (bloodGroupIndex != -1 && _cell(row, bloodGroupIndex).isNotEmpty) {
+            bloodGroup = _cell(row, bloodGroupIndex);
           }
 
           String? emergencyContact;
-          if (emergencyContactIndex != -1 && row[emergencyContactIndex].isNotEmpty) {
-            emergencyContact = row[emergencyContactIndex];
+          if (emergencyContactIndex != -1 && _cell(row, emergencyContactIndex).isNotEmpty) {
+            emergencyContact = _cell(row, emergencyContactIndex);
           }
 
           String? notes;
-          if (notesIndex != -1 && row[notesIndex].isNotEmpty) {
-            notes = row[notesIndex];
+          if (notesIndex != -1 && _cell(row, notesIndex).isNotEmpty) {
+            notes = _cell(row, notesIndex);
           }
 
           final memberData = {
@@ -197,11 +208,11 @@ class ImportExportRepository {
             'name': name,
             'phone': cleanPhone,
             'email': email,
-            'gender': genderIndex != -1 ? row[genderIndex] : null,
+            'gender': genderIndex != -1 ? _cell(row, genderIndex) : null,
             'age': age,
-            'address': addressIndex != -1 ? row[addressIndex] : null,
+            'address': addressIndex != -1 ? _cell(row, addressIndex) : null,
             'status': status,
-            'plan_name': planIndex != -1 ? row[planIndex] : null,
+            'plan_name': planIndex != -1 ? _cell(row, planIndex) : null,
             'join_date': joinDate,
             'membership_start': membershipStart,
             'membership_end': membershipEnd,
@@ -425,8 +436,7 @@ class ImportExportRepository {
   String _escapeCsv(String value) {
     if (value.isEmpty) return value;
     final trimmed = value.trim();
-    final formulaChars = {'=', '+', '-', '@', '%', '|'};
-    if (trimmed.isNotEmpty && formulaChars.contains(trimmed[0])) {
+    if (trimmed.isNotEmpty && _formulaChars.contains(trimmed[0])) {
       value = "'$value";
     }
     if (value.contains(',') || value.contains('"') || value.contains('\n') || value.contains('\r')) {
@@ -498,7 +508,7 @@ class ImportExportRepository {
             pw.Text('$gymName - Revenue Report',
                 style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 4),
-            pw.Text('${_formatDate(from)} to ${_formatDate(to)}',
+            pw.Text('${_formatDate(fromDate)} to ${_formatDate(toDate)}',
                 style: const pw.TextStyle(fontSize: 12, color: _grey)),
             pw.SizedBox(height: 8),
             pw.Text('Generated: ${DateTime.now().toLocal()}',
@@ -579,7 +589,7 @@ class ImportExportRepository {
             pw.Text('$gymName - Attendance Report',
                 style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 4),
-            pw.Text('${_formatDate(from)} to ${_formatDate(to)}',
+            pw.Text('${_formatDate(fromDate)} to ${_formatDate(toDate)}',
                 style: const pw.TextStyle(fontSize: 12, color: _grey)),
             pw.SizedBox(height: 8),
             pw.Text('Generated: ${DateTime.now().toLocal()}',
@@ -667,7 +677,7 @@ class ImportExportRepository {
             pw.Text('$gymName - Expense Report',
                 style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 4),
-            pw.Text('${_formatDate(from)} to ${_formatDate(to)}',
+            pw.Text('${_formatDate(fromDate)} to ${_formatDate(toDate)}',
                 style: const pw.TextStyle(fontSize: 12, color: _grey)),
             pw.SizedBox(height: 8),
             pw.Text('Generated: ${DateTime.now().toLocal()}',

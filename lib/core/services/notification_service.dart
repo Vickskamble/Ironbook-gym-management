@@ -7,6 +7,7 @@ import '../utils/error_handler.dart';
 class NotificationService {
   static NotificationService? _instance;
   static NotificationService get instance => _instance!;
+  static bool get isInitialized => _instance != null;
 
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
@@ -77,6 +78,20 @@ class NotificationService {
     } catch (e, stack) {
       ErrorHandler.logError('NotificationService._setupRealtimeListener', e, stack);
     }
+  }
+
+  void subscribeForCurrentUser() {
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session == null) {
+      _realtimeChannel?.unsubscribe();
+      _realtimeChannel = null;
+      return;
+    }
+    if (_realtimeChannel != null) {
+      _realtimeChannel!.unsubscribe();
+      _realtimeChannel = null;
+    }
+    _setupRealtimeListener();
   }
 
   void _onLocalNotificationTap(NotificationResponse response) {

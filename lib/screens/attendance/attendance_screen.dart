@@ -8,6 +8,8 @@ import '../../providers/member_provider.dart';
 import '../../models/member_model.dart';
 import '../../models/attendance_model.dart';
 import '../../widgets/center_toast.dart';
+import '../../widgets/skeleton_loader.dart';
+import '../../widgets/empty_state_widget.dart';
 
 class AttendanceScreen extends ConsumerStatefulWidget {
   const AttendanceScreen({super.key});
@@ -36,24 +38,27 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     }
 
     final attendanceAsync = ref.watch(todayAttendanceProvider(gymId));
+    final statsAsync = ref.watch(attendanceStatsProvider(gymId));
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: attendanceAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: AppColors.danger))),
+          loading: () => const _AttendanceSkeleton(),
+          error: (e, _) => const EmptyStateWidget(title: 'Error', message: 'Failed to load attendance records'),
           data: (records) {
+            final stats = statsAsync.value ??
+                {'today': records.length, 'week': records.length, 'month': records.length};
             return Column(
               children: [
-                _buildStatsRow(records),
+                _buildStatsRow(stats),
                 const SizedBox(height: 12),
                 _buildQrBanner(),
                 const SizedBox(height: 14),
                 _buildMarkAttendanceButton(gymId),
                 const SizedBox(height: 16),
                 Expanded(
-                  child: records.isEmpty ? _buildEmptyState() : _buildAttendanceList(records),
+                  child: records.isEmpty ? _buildEmptyState() : _buildAttendanceList(records, gymId),
                 ),
               ],
             );
@@ -63,17 +68,19 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     );
   }
 
-  Widget _buildStatsRow(List<AttendanceModel> records) {
-    final todayCount = records.length;
+  Widget _buildStatsRow(Map<String, int> stats) {
+    final todayCount = stats['today'] ?? 0;
+    final weekCount = stats['week'] ?? stats['today'] ?? 0;
+    final monthCount = stats['month'] ?? stats['today'] ?? 0;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Row(
         children: [
           Expanded(child: _buildStatCard('$todayCount', 'Today', const Color(0xFF10B981))),
           const SizedBox(width: 8),
-          Expanded(child: _buildStatCard('$todayCount', 'This Week', const Color(0xFF6366F1))),
+          Expanded(child: _buildStatCard('$weekCount', 'This Week', const Color(0xFF6366F1))),
           const SizedBox(width: 8),
-          Expanded(child: _buildStatCard('$todayCount', 'This Month', AppColors.textSecondary)),
+          Expanded(child: _buildStatCard('$monthCount', 'This Month', AppColors.textSecondary)),
         ],
       ),
     );
@@ -180,11 +187,16 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     );
   }
 
-  Widget _buildAttendanceList(List<AttendanceModel> records) {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: records.length,
-      itemBuilder: (context, i) => _buildAttendanceCard(records[i], i),
+  Widget _buildAttendanceList(List<AttendanceModel> records, String gymId) {
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(todayAttendanceProvider(gymId));
+      },
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: records.length,
+        itemBuilder: (context, i) => _buildAttendanceCard(records[i], i),
+      ),
     );
   }
 
@@ -516,6 +528,23 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
           },
         );
       },
+    );
+  }
+}
+
+class _AttendanceSkeleton extends StatelessWidget {
+  const _AttendanceSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: ListView(
+        children: List.generate(10, (_) => const Padding(
+          padding: EdgeInsets.only(bottom: 8),
+          child: SkeletonLoader(height: 56, borderRadius: 12),
+        )),
+      ),
     );
   }
 }

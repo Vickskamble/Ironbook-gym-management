@@ -10,7 +10,7 @@ class PaymentRepository {
   Future<PaymentModel> addPayment(String gymId, Map<String, dynamic> data) async {
     ErrorHandler.logStep('PaymentRepository.addPayment', 'called');
     try {
-      const allowedFields = {'member_id', 'member_name', 'plan_id', 'plan_name', 'amount', 'discount', 'method', 'transaction_id', 'note', 'next_due_date'};
+      const allowedFields = {'member_id', 'member_name', 'plan_id', 'plan_name', 'amount', 'discount', 'method', 'transaction_id', 'note', 'next_due_date', 'paid_at', 'created_by'};
       var filtered = Map<String, dynamic>.fromEntries(
         data.entries.where((e) => allowedFields.contains(e.key)),
       );
@@ -39,6 +39,8 @@ class PaymentRepository {
       }
       filtered['final_amount'] = finalAmount;
       filtered['gym_id'] = gymId;
+      filtered['created_by'] = filtered['created_by'] ??
+          _supabase.auth.currentUser?.id;
 
       final response = await _supabase
           .from('payments')

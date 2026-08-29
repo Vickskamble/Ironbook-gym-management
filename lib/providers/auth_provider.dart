@@ -374,6 +374,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       return 'Account created! Check your email to verify, then log in.';
     }
 
+    if (msg.contains('profile not found')) {
+      return 'Account setup is incomplete. Please contact support.';
+    }
+
     return 'Authentication failed: ${error.toString()}';
   }
 }

@@ -109,6 +109,36 @@ class AttendanceRepository {
     }
   }
 
+  Future<Map<String, int>> getAttendanceStats(String gymId) async {
+    ErrorHandler.logStep('AttendanceRepository.getAttendanceStats', 'called');
+    try {
+      final today = DateTime.now();
+      final dayStart = DateTime(today.year, today.month, today.day);
+      final weekStart = dayStart.subtract(Duration(days: today.weekday - 1));
+      final monthStart = DateTime(today.year, today.month, 1);
+      final nextMonth = DateTime(today.year, today.month + 1, 1);
+
+      Future<int> countInRange(DateTime from, DateTime toExclusive) async {
+        final response = await _client
+            .from('attendance')
+            .select('id')
+            .eq('gym_id', gymId)
+            .gte('check_in', from.toIso8601String())
+            .lt('check_in', toExclusive.toIso8601String());
+        return (response as List).length;
+      }
+
+      return {
+        'today': await countInRange(dayStart, dayStart.add(const Duration(days: 1))),
+        'week': await countInRange(weekStart, weekStart.add(const Duration(days: 7))),
+        'month': await countInRange(monthStart, nextMonth),
+      };
+    } catch (e, stack) {
+      ErrorHandler.logError('AttendanceRepository.getAttendanceStats', e, stack);
+      throw Exception('Failed to load attendance stats: ${e.toString()}');
+    }
+  }
+
   Future<List<AttendanceModel>> getTodayAttendance(String gymId) async {
     ErrorHandler.logStep('AttendanceRepository.getTodayAttendance', 'called');
     try {
