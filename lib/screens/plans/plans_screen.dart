@@ -5,6 +5,8 @@ import '../../providers/plan_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../models/plan_model.dart';
+import '../../widgets/skeleton_loader.dart';
+import '../../widgets/empty_state_widget.dart';
 
 class PlansScreen extends ConsumerStatefulWidget {
   const PlansScreen({super.key});
@@ -140,10 +142,16 @@ class _PlansScreenState extends ConsumerState<PlansScreen> {
                             ],
                           ),
                         )
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: filtered.length,
-                          itemBuilder: (context, index) => _buildPlanCard(filtered[index], index),
+                      : RefreshIndicator(
+                          onRefresh: () async {
+                            ref.read(planProvider(gymId).notifier).refresh();
+                            await Future.delayed(const Duration(seconds: 1));
+                          },
+                          child: ListView.builder(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: filtered.length,
+                            itemBuilder: (context, index) => _buildPlanCard(filtered[index], index),
+                          ),
                         ),
                 ),
                 const SizedBox(height: 80),
@@ -151,20 +159,15 @@ class _PlansScreenState extends ConsumerState<PlansScreen> {
             ),
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 64, color: Colors.red),
-              const SizedBox(height: 16),
-              Text('Error loading plans'),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: () => ref.read(planProvider(gymId).notifier).refresh(),
-                child: const Text('Retry'),
-              ),
-            ],
+        loading: () => const _PlansSkeleton(),
+        error: (error, _) => Padding(
+          padding: const EdgeInsets.all(24),
+          child: EmptyStateWidget(
+            icon: Icons.error_outline,
+            title: 'Failed to load plans',
+            message: error.toString(),
+            actionLabel: 'Retry',
+            onAction: () => ref.read(planProvider(gymId).notifier).refresh(),
           ),
         ),
       ),
@@ -312,6 +315,71 @@ class _PlansScreenState extends ConsumerState<PlansScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PlansSkeleton extends StatelessWidget {
+  const _PlansSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: ListView(
+        children: List.generate(6, (_) => const Padding(
+          padding: EdgeInsets.only(bottom: 12),
+          child: _PlanCardSkeleton(),
+        )),
+      ),
+    );
+  }
+}
+
+class _PlanCardSkeleton extends StatelessWidget {
+  const _PlanCardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.3)),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              SkeletonLoader(width: 40, height: 40, borderRadius: 12),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SkeletonLoader(width: 140, height: 16),
+                    SizedBox(height: 6),
+                    SkeletonLoader(width: 80, height: 12),
+                  ],
+                ),
+              ),
+              SkeletonLoader(width: 60, height: 24, borderRadius: 12),
+            ],
+          ),
+          SizedBox(height: 16),
+          Row(
+            children: [
+              SkeletonLoader(width: 60, height: 18, borderRadius: 9),
+              SizedBox(width: 8),
+              SkeletonLoader(width: 60, height: 18, borderRadius: 9),
+              SizedBox(width: 8),
+              SkeletonLoader(width: 60, height: 18, borderRadius: 9),
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -9,6 +9,7 @@ import '../../repositories/dashboard_repository.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../providers/dashboard_provider.dart';
 import '../../providers/notification_provider.dart';
+import '../../widgets/skeleton_loader.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -61,7 +62,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const _DashboardSkeleton()
             : hasError
             ? Center(
                 child: Column(
@@ -88,13 +89,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   ],
                 ),
               )
-            : _buildContent(
-                theme,
-                statsAsync.value!,
-                revenueAsync.value!,
-                recentMembersAsync.value!,
-                expiringMembersAsync.value!,
-                unreadCountAsync.value ?? 0,
+            : RefreshIndicator(
+                onRefresh: () async {
+                  _loadData();
+                  await Future.delayed(const Duration(seconds: 1));
+                },
+                child: _buildContent(
+                  theme,
+                  statsAsync.value!,
+                  revenueAsync.value!,
+                  recentMembersAsync.value!,
+                  expiringMembersAsync.value!,
+                  unreadCountAsync.value ?? 0,
+                ),
               ),
       ),
     );
@@ -790,5 +797,117 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     if (diff.inHours < 24) return '${diff.inHours}h ago';
     if (diff.inDays < 7) return '${diff.inDays}d ago';
     return '${diff.inDays ~/ 7}w ago';
+  }
+}
+
+class _DashboardSkeleton extends StatelessWidget {
+  const _DashboardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _StatRowSkeleton(),
+          const SizedBox(height: 24),
+          _ChartSkeleton(),
+          const SizedBox(height: 24),
+          _MemberListSkeleton(),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatRowSkeleton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List.generate(
+        4,
+        (i) => Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(left: i > 0 ? 8 : 0, right: i < 3 ? 8 : 0),
+            child: const SkeletonCard(),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChartSkeleton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.3)),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SkeletonLoader(width: 140, height: 16),
+          SizedBox(height: 20),
+          SkeletonLoader(height: 180, borderRadius: 12),
+        ],
+      ),
+    );
+  }
+}
+
+class _MemberListSkeleton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.3)),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SkeletonLoader(width: 120, height: 16),
+          SizedBox(height: 16),
+          _MemberRowSkeleton(),
+          SizedBox(height: 12),
+          _MemberRowSkeleton(),
+          SizedBox(height: 12),
+          _MemberRowSkeleton(),
+        ],
+      ),
+    );
+  }
+}
+
+class _MemberRowSkeleton extends StatelessWidget {
+  const _MemberRowSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Row(
+      children: [
+        SkeletonLoader(width: 40, height: 40, borderRadius: 20),
+        SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SkeletonLoader(width: 120, height: 13),
+              SizedBox(height: 6),
+              SkeletonLoader(width: 80, height: 11),
+            ],
+          ),
+        ),
+        SkeletonLoader(width: 60, height: 24, borderRadius: 12),
+      ],
+    );
   }
 }

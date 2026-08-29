@@ -6,6 +6,8 @@ import '../../providers/member_provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/responsive.dart';
 import '../../models/member_model.dart';
+import '../../widgets/skeleton_loader.dart';
+import '../../widgets/empty_state_widget.dart';
 
 class MembersScreen extends ConsumerStatefulWidget {
   const MembersScreen({super.key});
@@ -106,8 +108,20 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
             const SizedBox(height: 12),
             Expanded(
               child: membersAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, _) => Center(child: Text('Error: $error')),
+                loading: () => const _MembersSkeleton(),
+                error: (error, _) => Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: EmptyStateWidget(
+                    icon: Icons.error_outline,
+                    title: 'Failed to load members',
+                    message: error.toString(),
+                    actionLabel: 'Retry',
+                    onAction: () {
+                      final gid = ref.read(authProvider).gymId;
+                      if (gid != null) ref.invalidate(memberListProvider(gid));
+                    },
+                  ),
+                ),
                 data: (members) {
                   final activeCount = members
                       .where((m) => m.status == 'Active')
@@ -174,40 +188,25 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
                       const SizedBox(height: 10),
                       Expanded(
                         child: filtered.isEmpty
-                            ? Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(20),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.surface,
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: Icon(
-                                        Icons.people_outline_rounded,
-                                        size: 40,
-                                        color: AppColors.textMuted,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      'No members found',
-                                      style: TextStyle(
-                                        color: AppColors.textSecondary,
-                                        fontSize: 15,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                            ? const EmptyStateWidget(
+                                icon: Icons.people_outline_rounded,
+                                title: 'No members found',
+                                message: 'Add your first member to get started',
                               )
-                            : ListView.builder(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
+                            : RefreshIndicator(
+                                onRefresh: () async {
+                                  final gid = ref.read(authProvider).gymId;
+                                  if (gid != null) ref.invalidate(memberListProvider(gid));
+                                  await Future.delayed(const Duration(seconds: 1));
+                                },
+                                child: ListView.builder(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                  ),
+                                  itemCount: filtered.length,
+                                  itemBuilder: (context, index) =>
+                                      _buildMemberCard(filtered[index], index),
                                 ),
-                                itemCount: filtered.length,
-                                itemBuilder: (context, index) =>
-                                    _buildMemberCard(filtered[index], index),
                               ),
                       ),
                     ],
@@ -334,8 +333,42 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
     final isExpiring =
         member.daysUntilExpiry >= 0 && member.daysUntilExpiry <= 7;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+    return Dismissible(
+      key: ValueKey(member.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: AppColors.danger.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        child: const Icon(Icons.delete_outline_rounded, color: AppColors.danger),
+      ),
+      confirmDismiss: (direction) async {
+        return await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: AppColors.surface,
+            title: const Text('Delete Member', style: TextStyle(color: Colors.white)),
+            content: const Text('Are you sure?', style: TextStyle(color: AppColors.textSecondary)),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+              TextButton(
+                  onPressed: () {
+                    final gid = ref.read(authProvider).gymId;
+                    if (gid != null) ref.read(memberListProvider(gid).notifier).deleteMember(member.id);
+                    Navigator.pop(ctx, true);
+                  },
+                child: const Text('Delete', style: TextStyle(color: AppColors.danger)),
+              ),
+            ],
+          ),
+        ) ?? false;
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: isExpiring ? const Color(0x08F59E0B) : AppColors.surface,
         borderRadius: BorderRadius.circular(12),
@@ -479,6 +512,83 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
             ),
           ),
         ),
+      ),
+      ),
+    );
+  }
+}
+
+class _MembersSkeleton extends StatelessWidget {
+  const _MembersSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          SizedBox(
+            height: 36,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: List.generate(5, (_) => const Padding(
+                padding: EdgeInsets.only(right: 8),
+                child: SkeletonLoader(width: 80, height: 32, borderRadius: 16),
+              )),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: ListView(
+              children: List.generate(8, (_) => const Padding(
+                padding: EdgeInsets.only(bottom: 10),
+                child: _MemberCardSkeleton(),
+              )),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MemberCardSkeleton extends StatelessWidget {
+  const _MemberCardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.3)),
+      ),
+      child: const Row(
+        children: [
+          SkeletonLoader(width: 42, height: 42, borderRadius: 12),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SkeletonLoader(width: 120, height: 13),
+                SizedBox(height: 6),
+                SkeletonLoader(width: 90, height: 11),
+                SizedBox(height: 6),
+                SkeletonLoader(width: 70, height: 18, borderRadius: 9),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              SkeletonLoader(width: 50, height: 18, borderRadius: 9),
+              SizedBox(height: 6),
+              SkeletonLoader(width: 60, height: 11),
+            ],
+          ),
+        ],
       ),
     );
   }

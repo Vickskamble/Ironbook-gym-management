@@ -6,6 +6,8 @@ import '../../models/staff_model.dart';
 import '../../core/constants/app_colors.dart';
 import 'add_staff_screen.dart';
 import 'staff_detail_screen.dart';
+import '../../widgets/skeleton_loader.dart';
+import '../../widgets/empty_state_widget.dart';
 
 class StaffListScreen extends ConsumerStatefulWidget {
   const StaffListScreen({super.key});
@@ -104,8 +106,17 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
             const SizedBox(height: 12),
             Expanded(
               child: staffAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, _) => Center(child: Text('Error: $error')),
+                loading: () => const _StaffSkeleton(),
+                error: (error, _) => Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: EmptyStateWidget(
+                      icon: Icons.error_outline,
+                      title: 'Failed to load staff',
+                      message: error.toString(),
+                      actionLabel: 'Retry',
+                      onAction: () => ref.invalidate(staffProvider),
+                    ),
+                  ),
                 data: (staff) {
                   final query = _searchController.text.trim().toLowerCase();
                   final filtered = query.isEmpty
@@ -115,26 +126,10 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
                           s.phone.contains(query)).toList();
 
                   if (filtered.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 80, height: 80,
-                            decoration: BoxDecoration(
-                              color: AppColors.surfaceLight,
-                              borderRadius: BorderRadius.circular(24),
-                              border: Border.all(color: AppColors.border),
-                            ),
-                            child: const Icon(Icons.people_outline_rounded, size: 36, color: AppColors.textMuted),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            query.isNotEmpty ? 'No staff match your search' : 'No staff members yet',
-                            style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
-                          ),
-                        ],
-                      ),
+                    return const EmptyStateWidget(
+                      icon: Icons.badge_rounded,
+                      title: 'No staff found',
+                      message: 'Add your first staff member',
                     );
                   }
 
@@ -212,101 +207,193 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
         ? Colors.green : staffMember.status == 'Terminated'
             ? Colors.red : Colors.amber;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: staffMember.status != 'Active'
-            ? const Color(0x1AEF4444)
-            : AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: staffMember.status != 'Active'
-              ? const Color(0x26EF4444)
-              : AppColors.border,
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
+    return Dismissible(
+      key: ValueKey(staffMember.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: AppColors.danger.withValues(alpha: 0.2),
           borderRadius: BorderRadius.circular(12),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => StaffDetailScreen(staffId: staffMember.id)),
+        ),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        child: const Icon(Icons.delete_outline_rounded, color: AppColors.danger),
+      ),
+      confirmDismiss: (direction) async {
+        return await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: AppColors.surface,
+            title: const Text('Delete Staff', style: TextStyle(color: Colors.white)),
+            content: const Text('Are you sure?', style: TextStyle(color: AppColors.textSecondary)),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+              TextButton(
+                onPressed: () {
+                  ref.read(staffProvider.notifier).terminateStaff(staffMember.id);
+                  Navigator.pop(ctx, true);
+                },
+                child: const Text('Delete', style: TextStyle(color: AppColors.danger)),
+              ),
+            ],
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    gradient: LinearGradient(
-                      colors: staffMember.profilePic != null
-                          ? [Colors.grey, Colors.grey]
-                          : [roleColor, roleColor.withValues(alpha: 0.6)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+        ) ?? false;
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: staffMember.status != 'Active'
+              ? const Color(0x1AEF4444)
+              : AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: staffMember.status != 'Active'
+                ? const Color(0x26EF4444)
+                : AppColors.border,
+          ),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => StaffDetailScreen(staffId: staffMember.id)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      gradient: LinearGradient(
+                        colors: staffMember.profilePic != null
+                            ? [Colors.grey, Colors.grey]
+                            : [roleColor, roleColor.withValues(alpha: 0.6)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: staffMember.profilePic != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(staffMember.profilePic!, fit: BoxFit.cover),
+                          )
+                        : Center(
+                            child: Text(
+                              staffMember.name[0].toUpperCase(),
+                              style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(staffMember.name,
+                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Colors.white)),
+                            ),
+                            Container(
+                              width: 8, height: 8,
+                              decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: roleColor.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(99),
+                              ),
+                              child: Text(staffMember.role,
+                                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: roleColor)),
+                            ),
+                            const SizedBox(width: 8),
+                            Icon(Icons.phone_rounded, size: 11, color: AppColors.textMuted),
+                            const SizedBox(width: 3),
+                            Text(staffMember.phone,
+                                style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-                  child: staffMember.profilePic != null
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.network(staffMember.profilePic!, fit: BoxFit.cover),
-                        )
-                      : Center(
-                          child: Text(
-                            staffMember.name[0].toUpperCase(),
-                            style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800),
-                          ),
-                        ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(staffMember.name,
-                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Colors.white)),
-                          ),
-                          Container(
-                            width: 8, height: 8,
-                            decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: roleColor.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(99),
-                            ),
-                            child: Text(staffMember.role,
-                                style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: roleColor)),
-                          ),
-                          const SizedBox(width: 8),
-                          Icon(Icons.phone_rounded, size: 11, color: AppColors.textMuted),
-                          const SizedBox(width: 3),
-                          Text(staffMember.phone,
-                              style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
   }
+}
+
+class _StaffSkeleton extends StatelessWidget {
+  const _StaffSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: ListView(
+        children: List.generate(8, (_) => const Padding(
+          padding: EdgeInsets.only(bottom: 8),
+          child: _StaffCardSkeleton(),
+        )),
+      ),
+    );
+  }
+}
+
+class _StaffCardSkeleton extends StatelessWidget {
+  const _StaffCardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.3)),
+      ),
+      child: const Row(
+        children: [
+          SkeletonLoader(width: 42, height: 42, borderRadius: 12),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SkeletonLoader(width: 140, height: 14),
+                SizedBox(height: 6),
+                SkeletonLoader(width: 100, height: 11),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              SkeletonLoader(width: 60, height: 18, borderRadius: 9),
+              SizedBox(height: 4),
+              SkeletonLoader(width: 50, height: 11),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
 }

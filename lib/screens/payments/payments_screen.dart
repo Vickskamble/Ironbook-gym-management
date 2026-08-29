@@ -5,6 +5,8 @@ import '../../providers/auth_provider.dart';
 import '../../providers/payment_provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../models/payment_model.dart';
+import '../../widgets/skeleton_loader.dart';
+import '../../widgets/empty_state_widget.dart';
 
 class PaymentsScreen extends ConsumerStatefulWidget {
   const PaymentsScreen({super.key});
@@ -88,8 +90,15 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
             const SizedBox(height: 12),
             Expanded(
               child: paymentsAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, _) => Center(child: Text('Error: $error')),
+                loading: () => const _PaymentsSkeleton(),
+                error: (error, _) => Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: EmptyStateWidget(
+                    icon: Icons.error_outline,
+                    title: 'Failed to load payments',
+                    message: error.toString(),
+                  ),
+                ),
                 data: (payments) {
                   final now = DateTime.now();
                   final searchText = _searchController.text.toLowerCase();
@@ -141,38 +150,21 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                       const SizedBox(height: 12),
                       Expanded(
                         child: filtered.isEmpty
-                            ? Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(20),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.surface,
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: Icon(
-                                        Icons.receipt_long_rounded,
-                                        size: 40,
-                                        color: AppColors.textMuted,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      'No payments found',
-                                      style: TextStyle(
-                                        color: AppColors.textSecondary,
-                                        fontSize: 15,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                            ? const EmptyStateWidget(
+                                icon: Icons.receipt_long_rounded,
+                                title: 'No payments found',
+                                message: 'No payments match your filters',
                               )
-                            : ListView.builder(
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
-                                itemCount: filtered.length,
-                                itemBuilder: (context, index) =>
-                                    _buildPaymentCard(filtered[index], index),
+                            : RefreshIndicator(
+                                onRefresh: () async {
+                                  ref.invalidate(paymentListProvider(gymId));
+                                },
+                                child: ListView.builder(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  itemCount: filtered.length,
+                                  itemBuilder: (context, index) =>
+                                      _buildPaymentCard(filtered[index], index),
+                                ),
                               ),
                       ),
                     ],
@@ -390,5 +382,62 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
   String _formatDate(DateTime date) {
     final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+}
+
+class _PaymentsSkeleton extends StatelessWidget {
+  const _PaymentsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: ListView(
+        children: List.generate(8, (_) => const Padding(
+          padding: EdgeInsets.only(bottom: 8),
+          child: _PaymentCardSkeleton(),
+        )),
+      ),
+    );
+  }
+}
+
+class _PaymentCardSkeleton extends StatelessWidget {
+  const _PaymentCardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.3)),
+      ),
+      child: const Row(
+        children: [
+          SkeletonLoader(width: 40, height: 40, borderRadius: 10),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SkeletonLoader(width: 140, height: 14),
+                SizedBox(height: 6),
+                SkeletonLoader(width: 100, height: 11),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              SkeletonLoader(width: 70, height: 16),
+              SizedBox(height: 4),
+              SkeletonLoader(width: 50, height: 18, borderRadius: 9),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }

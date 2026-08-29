@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
 import '../../providers/notification_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../widgets/skeleton_loader.dart';
+import '../../widgets/empty_state_widget.dart';
 
 class NotificationsScreen extends ConsumerWidget {
   const NotificationsScreen({super.key});
@@ -23,32 +25,19 @@ class NotificationsScreen extends ConsumerWidget {
       body: SafeArea(
         child: notifAsync.when(
           data: (notifs) => notifs.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 80, height: 80,
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        child: const Icon(Icons.notifications_none_rounded, size: 36, color: AppColors.textMuted),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text('No notifications',
-                          style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 6),
-                      Text('You\'re all caught up!',
-                          style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-                    ],
-                  ),
+              ? const EmptyStateWidget(
+                  title: 'No notifications',
+                  message: "You're all caught up!",
+                  icon: Icons.notifications_none_rounded,
                 )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: notifs.length,
-                  itemBuilder: (context, i) {
+              : RefreshIndicator(
+                  onRefresh: () async {
+                    ref.invalidate(notificationListProvider(gymId));
+                  },
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: notifs.length,
+                    itemBuilder: (context, i) {
                     final n = notifs[i];
                     return Container(
                       margin: const EdgeInsets.only(bottom: 10),
@@ -95,10 +84,60 @@ class NotificationsScreen extends ConsumerWidget {
                       ),
                     );
                   },
+                  ),
                 ),
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: AppColors.danger))),
+          loading: () => const _NotificationsSkeleton(),
+          error: (e, _) => const EmptyStateWidget(title: 'Error', message: 'Failed to load notifications'),
         ),
+      ),
+    );
+  }
+}
+
+class _NotificationsSkeleton extends StatelessWidget {
+  const _NotificationsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: ListView(
+        children: List.generate(10, (_) => const Padding(
+          padding: EdgeInsets.only(bottom: 8),
+          child: _NotifItemSkeleton(),
+        )),
+      ),
+    );
+  }
+}
+
+class _NotifItemSkeleton extends StatelessWidget {
+  const _NotifItemSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.3)),
+      ),
+      child: const Row(
+        children: [
+          SkeletonLoader(width: 40, height: 40, borderRadius: 20),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SkeletonLoader(width: 180, height: 13),
+                SizedBox(height: 6),
+                SkeletonLoader(width: 120, height: 11),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

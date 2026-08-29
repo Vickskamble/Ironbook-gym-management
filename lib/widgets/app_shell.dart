@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/constants/app_colors.dart';
 import '../core/utils/responsive.dart';
 import '../core/utils/feature_gate.dart';
 import '../providers/auth_provider.dart';
+import 'gradient_icon.dart';
 
 class AppShell extends ConsumerWidget {
   final Widget child;
@@ -26,15 +28,6 @@ class AppShell extends ConsumerWidget {
     '/subscription': Color(0xFF6366F1),
     '/settings': Color(0xFF94A3B8),
   };
-
-  bool _mayAccess(BuildContext context, String route, String plan) {
-    final feature = AppFeature.fromRoute(route);
-    if (feature != null && !feature.isAvailable(plan)) {
-      showUpgradeDialog(context);
-      return false;
-    }
-    return true;
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -90,26 +83,36 @@ class AppShell extends ConsumerWidget {
   Widget _moreItem(BuildContext context, String location, String plan) {
     final moreRoutes = ['/settings', '/expenses', '/reports', '/import-export', '/notifications', '/inventory', '/staff', '/subscription'];
     final active = moreRoutes.any((r) => location == r || location.startsWith('$r/'));
-    return GestureDetector(
-      onTap: () => _showMoreSheet(context, plan),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.more_horiz_rounded,
-            color: active ? AppColors.primary : AppColors.textMuted,
-            size: 24,
+    return Semantics(
+      label: 'More options',
+      button: true,
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          _showMoreSheet(context, plan);
+        },
+        child: Tooltip(
+          message: 'More',
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.more_horiz_rounded,
+                color: active ? AppColors.primary : AppColors.textMuted,
+                size: 24,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'More',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: active ? AppColors.primary : AppColors.textMuted,
+                  fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            'More',
-            style: TextStyle(
-              fontSize: 11,
-              color: active ? AppColors.primary : AppColors.textMuted,
-              fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -177,15 +180,29 @@ class AppShell extends ConsumerWidget {
     final color = _colorFor(route, current);
     final feature = AppFeature.fromRoute(route);
     final locked = plan != null && feature != null && !feature.isAvailable(plan);
-    return GestureDetector(
-      onTap: () => locked ? showUpgradeDialog(context) : context.go(route),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 4),
-          Text(label, style: TextStyle(fontSize: 11, color: color, fontWeight: active ? FontWeight.w600 : FontWeight.w400)),
-        ],
+    return Semantics(
+      label: '$label${locked ? ', locked' : ''}',
+      button: true,
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          if (locked) {
+            showUpgradeDialog(context);
+          } else {
+            context.go(route);
+          }
+        },
+        child: Tooltip(
+          message: locked ? '$label (upgrade required)' : label,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 24),
+              const SizedBox(height: 4),
+              Text(label, style: TextStyle(fontSize: 11, color: color, fontWeight: active ? FontWeight.w600 : FontWeight.w400)),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -205,19 +222,9 @@ class AppShell extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                ShaderMask(
-                  shaderCallback: (bounds) => const LinearGradient(
-                    colors: [AppColors.primary, AppColors.accent],
-                  ).createShader(bounds),
-                  child: const Icon(Icons.fitness_center_rounded, size: 28, color: Colors.white),
-                ),
+                const GradientIcon(icon: Icons.fitness_center_rounded, size: 28),
                 const SizedBox(width: 10),
-                ShaderMask(
-                  shaderCallback: (bounds) => const LinearGradient(
-                    colors: [AppColors.primary, AppColors.accent],
-                  ).createShader(bounds),
-                  child: const Text('IronBook', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white)),
-                ),
+                const GradientText('IronBook', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
               ],
             ),
             const SizedBox(height: 4),
@@ -247,18 +254,29 @@ class AppShell extends ConsumerWidget {
     final active = current == route || current.startsWith('$route/');
     final iconColor = _navColors[route] ?? AppColors.primary;
     final locked = plan != null && AppFeature.fromRoute(route) != null && !AppFeature.fromRoute(route)!.isAvailable(plan);
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      decoration: BoxDecoration(
-        color: active ? iconColor.withValues(alpha: 0.1) : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: ListTile(
-        leading: Icon(locked ? Icons.lock_rounded : icon, color: locked ? AppColors.textMuted : (active ? iconColor : iconColor.withValues(alpha: 0.7)), size: 22),
-        title: Text(label, style: TextStyle(color: locked ? AppColors.textMuted : (active ? iconColor : AppColors.textSecondary), fontWeight: active ? FontWeight.w600 : FontWeight.w400, fontSize: 14)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        onTap: locked ? () => showUpgradeDialog(context) : () => context.go(route),
-        dense: true,
+    return Semantics(
+      label: '$label${locked ? ', locked' : ''}',
+      button: true,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+        decoration: BoxDecoration(
+          color: active ? iconColor.withValues(alpha: 0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: ListTile(
+          leading: Icon(locked ? Icons.lock_rounded : icon, color: locked ? AppColors.textMuted : (active ? iconColor : iconColor.withValues(alpha: 0.7)), size: 22),
+          title: Text(label, style: TextStyle(color: locked ? AppColors.textMuted : (active ? iconColor : AppColors.textSecondary), fontWeight: active ? FontWeight.w600 : FontWeight.w400, fontSize: 14)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          onTap: () {
+            HapticFeedback.lightImpact();
+            if (locked) {
+              showUpgradeDialog(context);
+            } else {
+              context.go(route);
+            }
+          },
+          dense: true,
+        ),
       ),
     );
   }

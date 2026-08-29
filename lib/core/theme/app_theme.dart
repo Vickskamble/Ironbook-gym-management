@@ -9,6 +9,12 @@ class AppTheme {
       final theme = ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: {
+            TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+            TargetPlatform.iOS: FadeUpwardsPageTransitionsBuilder(),
+          },
+        ),
         scaffoldBackgroundColor: AppColors.background,
         colorScheme: ColorScheme.dark(
           primary: AppColors.primary,

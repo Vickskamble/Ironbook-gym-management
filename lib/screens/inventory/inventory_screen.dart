@@ -5,6 +5,8 @@ import '../../providers/auth_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../models/inventory_model.dart';
 import '../../core/constants/app_colors.dart';
+import '../../widgets/skeleton_loader.dart';
+import '../../widgets/empty_state_widget.dart';
 
 class InventoryScreen extends ConsumerStatefulWidget {
   const InventoryScreen({super.key});
@@ -36,8 +38,14 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             _buildTopBar(),
             Expanded(
               child: itemsAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: AppColors.danger))),
+                loading: () => const _InventorySkeleton(),
+                error: (e, _) => EmptyStateWidget(
+                  icon: Icons.error_outline_rounded,
+                  title: 'Something went wrong',
+                  message: '$e',
+                  actionLabel: 'Retry',
+                  onAction: () => ref.invalidate(inventoryListProvider(gymId)),
+                ),
                 data: (items) {
                   final lowStockCount = items.where((i) => i.isLowStock).length;
                   final filtered = _categoryFilter == 'All'
@@ -52,11 +60,21 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                       const SizedBox(height: 8),
                       Expanded(
                         child: filtered.isEmpty
-                            ? _buildEmptyState()
-                            : ListView.builder(
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
-                                itemCount: filtered.length,
-                                itemBuilder: (_, i) => _buildItemCard(filtered[i]),
+                            ? const EmptyStateWidget(
+                                icon: Icons.inventory_2_rounded,
+                                title: 'No items found',
+                                message: 'Add your first inventory item',
+                              )
+                            : RefreshIndicator(
+                                onRefresh: () async {
+                                  ref.invalidate(inventoryListProvider(gymId));
+                                  await Future.delayed(const Duration(seconds: 1));
+                                },
+                                child: ListView.builder(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  itemCount: filtered.length,
+                                  itemBuilder: (_, i) => _buildItemCard(filtered[i]),
+                                ),
                               ),
                       ),
                     ],
@@ -192,29 +210,6 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     );
   }
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.surface, borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Icon(Icons.inventory_2_outlined, size: 40, color: AppColors.textMuted),
-          ),
-          const SizedBox(height: 16),
-          const Text('No items in inventory',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 15)),
-          const SizedBox(height: 6),
-          Text('Tap + to add your first item',
-              style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
-        ],
-      ),
-    );
-  }
-
   Widget _buildItemCard(InventoryItem item) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -314,6 +309,63 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _InventorySkeleton extends StatelessWidget {
+  const _InventorySkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: ListView(
+        children: List.generate(8, (_) => const Padding(
+          padding: EdgeInsets.only(bottom: 8),
+          child: _ItemCardSkeleton(),
+        )),
+      ),
+    );
+  }
+}
+
+class _ItemCardSkeleton extends StatelessWidget {
+  const _ItemCardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.3)),
+      ),
+      child: const Row(
+        children: [
+          SkeletonLoader(width: 44, height: 44, borderRadius: 12),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SkeletonLoader(width: 150, height: 14),
+                SizedBox(height: 6),
+                SkeletonLoader(width: 120, height: 11),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              SkeletonLoader(width: 50, height: 16),
+              SizedBox(height: 4),
+              SkeletonLoader(width: 40, height: 12),
+            ],
+          ),
+        ],
       ),
     );
   }

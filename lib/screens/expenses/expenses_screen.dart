@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
 import '../../providers/expense_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../widgets/skeleton_loader.dart';
+import '../../widgets/empty_state_widget.dart';
 
 class ExpensesScreen extends ConsumerWidget {
   const ExpensesScreen({super.key});
@@ -36,14 +38,27 @@ class ExpensesScreen extends ConsumerWidget {
                       const SizedBox(height: 16),
                       Expanded(
                         child: expenses.isEmpty
-                            ? _buildEmptyState()
-                            : _buildExpenseList(expenses),
+                            ? const EmptyStateWidget(
+                                icon: Icons.receipt_long_rounded,
+                                title: 'No expenses found',
+                                message: 'Add your first expense to get started',
+                              )
+                            : _buildExpenseList(expenses, ref, gymId),
                       ),
                     ],
                   );
                 },
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: AppColors.danger))),
+                loading: () => const _ExpensesSkeleton(),
+                error: (e, _) => Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: EmptyStateWidget(
+                    icon: Icons.error_outline,
+                    title: 'Failed to load expenses',
+                    message: e.toString(),
+                    actionLabel: 'Retry',
+                    onAction: () => ref.invalidate(expenseListProvider(gymId)),
+                  ),
+                ),
               ),
             ),
           ],
@@ -124,33 +139,13 @@ class ExpensesScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 80, height: 80,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceLight,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: const Icon(Icons.receipt_long_rounded, size: 36, color: AppColors.textMuted),
-          ),
-          const SizedBox(height: 16),
-          const Text('No expenses yet',
-              style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 6),
-          Text('Record your first expense to get started',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildExpenseList(List expenses) {
-    return ListView.builder(
+  Widget _buildExpenseList(List expenses, WidgetRef ref, String gymId) {
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(expenseListProvider(gymId));
+        await Future.delayed(const Duration(seconds: 1));
+      },
+      child: ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: expenses.length + 1,
       itemBuilder: (context, index) {
@@ -230,6 +225,57 @@ class ExpensesScreen extends ConsumerWidget {
           ),
         );
       },
+    ),
+    );
+  }
+}
+
+class _ExpensesSkeleton extends StatelessWidget {
+  const _ExpensesSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: ListView(
+        children: List.generate(8, (_) => const Padding(
+          padding: EdgeInsets.only(bottom: 8),
+          child: _ExpenseItemSkeleton(),
+        )),
+      ),
+    );
+  }
+}
+
+class _ExpenseItemSkeleton extends StatelessWidget {
+  const _ExpenseItemSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.3)),
+      ),
+      child: const Row(
+        children: [
+          SkeletonLoader(width: 40, height: 40, borderRadius: 10),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SkeletonLoader(width: 140, height: 14),
+                SizedBox(height: 6),
+                SkeletonLoader(width: 100, height: 11),
+              ],
+            ),
+          ),
+          SkeletonLoader(width: 70, height: 16),
+        ],
+      ),
     );
   }
 }
